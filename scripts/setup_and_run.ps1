@@ -46,7 +46,7 @@ function Add-ToPath {
     param([string]$Path)
     if ($env:PATH -notlike "*$Path*") {
         $env:PATH += ";$Path"
-        Write-Status "Added to PATH: $Path" "✓"
+        Write-Status "Added to PATH: $Path" "OK"
     }
 }
 
@@ -226,6 +226,6 @@ Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Host "Next steps:" -ForegroundColor Cyan
 Write-Host "  - Run again: .\scripts\setup_and_run.ps1" -ForegroundColor Gray
-Write-Host "  - Run tests: flutter test --coverage" -ForegroundColor Gray
-Write-Host "  - Build release: flutter build appbundle --release" -ForegroundColor Gray
+Write-Host "  - Run tests: flutter test" -ForegroundColor Gray
+Write-Host "  - Build: flutter build appbundle" -ForegroundColor Gray
 Write-Host ""
