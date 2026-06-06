@@ -1,42 +1,40 @@
 # SpendLens Setup & Run Script
 # Automates Flutter setup, dependencies, and app launch
+# Compatible with PowerShell 5.1 (Windows 11)
 
 param(
     [switch]$SkipSetup = $false,
-    [string]$DeviceType = "emulator",  # emulator or device
+    [string]$DeviceType = "emulator",
     [switch]$Release = $false,
     [string]$CustomEmulator = ""
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
-Write-Host "`n╔════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║  SpendLens - Setup & Run                   ║" -ForegroundColor Cyan
-Write-Host "╚════════════════════════════════════════════╝`n" -ForegroundColor Cyan
+Write-Host "`n========================================" -ForegroundColor Cyan
+Write-Host "   SpendLens - Setup & Run" -ForegroundColor Cyan
+Write-Host "========================================`n" -ForegroundColor Cyan
 
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
 
 function Write-Status {
-    param([string]$Message, [string]$Status = "INFO")
-    $colors = @{
-        "✓" = "Green"
-        "✗" = "Red"
-        "⚠" = "Yellow"
-        "→" = "Cyan"
-        "INFO" = "Gray"
-    }
-    $color = $colors[$Status] ?? "Gray"
-    Write-Host "  $Status  $Message" -ForegroundColor $color
+    param([string]$Message, [string]$Status = "OK")
+    $color = "Gray"
+    if ($Status -eq "OK") { $color = "Green" }
+    elseif ($Status -eq "FAIL") { $color = "Red" }
+    elseif ($Status -eq "WARN") { $color = "Yellow" }
+    elseif ($Status -eq "INFO") { $color = "Cyan" }
+    Write-Host "  [$Status] $Message" -ForegroundColor $color
 }
 
-function Test-Command {
+function Test-CommandExists {
     param([string]$Command)
     try {
-        $null = & $Command --version 2>&1
+        $result = & $Command --version 2>&1
         return $true
     }
     catch {
@@ -59,12 +57,12 @@ function Add-ToPath {
 Write-Host "`n[1/5] Checking Environment..." -ForegroundColor Yellow
 
 # Check Flutter
-if (Test-Command "flutter") {
+if (Test-CommandExists "flutter") {
     $flutterVersion = flutter --version | Select-Object -First 1
-    Write-Status "Flutter found: $flutterVersion" "✓"
+    Write-Status "Flutter found: $flutterVersion" "OK"
 }
 else {
-    Write-Status "Flutter not found in PATH" "✗"
+    Write-Status "Flutter not found in PATH" "FAIL"
     Write-Host "`n  Installing Flutter..." -ForegroundColor Gray
 
     # Try Chocolatey
@@ -73,15 +71,15 @@ else {
         Add-ToPath "C:\tools\flutter\bin"
     }
     else {
-        Write-Status "Chocolatey not found. Manual installation required." "⚠"
+        Write-Status "Chocolatey not found. Manual installation required." "WARN"
         Write-Host "`n  Download from: https://flutter.dev/docs/get-started/install/windows" -ForegroundColor Yellow
         Write-Host "  Extract to: C:\Users\$env:USERNAME\flutter" -ForegroundColor Yellow
-        Write-Host "  Then add to PATH: `$env:PATH += `";C:\Users\$env:USERNAME\flutter\bin`"" -ForegroundColor Yellow
+        Write-Host "  Then add to PATH and restart PowerShell" -ForegroundColor Yellow
 
         Read-Host "`n  Press Enter after installing Flutter"
 
-        if (-not (Test-Command "flutter")) {
-            Write-Status "Flutter still not found. Exiting." "✗"
+        if (-not (Test-CommandExists "flutter")) {
+            Write-Status "Flutter still not found. Exiting." "FAIL"
             exit 1
         }
     }
@@ -93,22 +91,22 @@ if ([string]::IsNullOrEmpty($env:ANDROID_HOME)) {
     if (Test-Path $androidPath) {
         $env:ANDROID_HOME = $androidPath
         [Environment]::SetEnvironmentVariable("ANDROID_HOME", $androidPath, [EnvironmentVariableTarget]::User)
-        Write-Status "Set ANDROID_HOME: $androidPath" "✓"
+        Write-Status "Set ANDROID_HOME: $androidPath" "OK"
     }
     else {
-        Write-Status "ANDROID_HOME not set. Please install Android Studio or set manually." "⚠"
+        Write-Status "ANDROID_HOME not set. Please install Android Studio." "WARN"
     }
 }
 else {
-    Write-Status "ANDROID_HOME: $env:ANDROID_HOME" "✓"
+    Write-Status "ANDROID_HOME: $env:ANDROID_HOME" "OK"
 }
 
 # Check Java
-if (Test-Command "java") {
-    Write-Status "Java found" "✓"
+if (Test-CommandExists "java") {
+    Write-Status "Java found" "OK"
 }
 else {
-    Write-Status "Java not found. Please install JDK 11+." "⚠"
+    Write-Status "Java not found. Please install JDK 11+." "WARN"
 }
 
 # ============================================================================
@@ -122,18 +120,18 @@ Write-Host $doctorOutput
 
 $hasDevice = $doctorOutput | Select-String "connected device" -Quiet
 if (-not $hasDevice) {
-    Write-Status "No device/emulator found" "⚠"
+    Write-Status "No device/emulator found" "WARN"
     Write-Host "`n  Available emulators:" -ForegroundColor Gray
     flutter emulators
 
     Write-Host "`n  To launch an emulator:" -ForegroundColor Gray
-    Write-Host "    flutter emulators --launch <emulator_id>" -ForegroundColor Gray
+    Write-Host "    flutter emulators --launch emulator_name" -ForegroundColor Gray
 
     if ($DeviceType -eq "emulator") {
         $emulatorChoice = Read-Host "`n  Enter emulator name to launch (or press Enter to skip)"
         if (-not [string]::IsNullOrEmpty($emulatorChoice)) {
             Write-Host "  Launching emulator: $emulatorChoice..." -ForegroundColor Gray
-            flutter emulators --launch $emulatorChoice | Out-Null
+            flutter emulators --launch $emulatorChoice 2>&1 | Out-Null
             Start-Sleep -Seconds 3
         }
     }
@@ -147,14 +145,15 @@ Write-Host "`n[3/5] Installing Dependencies..." -ForegroundColor Yellow
 
 Push-Location $projectRoot
 
-Write-Status "Running: flutter pub get" "→"
+Write-Status "Running: flutter pub get" "INFO"
 flutter pub get
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Status "Failed to get dependencies" "✗"
+    Write-Status "Failed to get dependencies" "FAIL"
+    Pop-Location
     exit 1
 }
-Write-Status "Dependencies installed" "✓"
+Write-Status "Dependencies installed" "OK"
 
 # ============================================================================
 # STEP 4: ENVIRONMENT SETUP
@@ -164,17 +163,17 @@ Write-Host "`n[4/5] Setting Up Environment..." -ForegroundColor Yellow
 
 # Check .env file
 if (-not (Test-Path ".env")) {
-    Write-Status ".env not found, creating from template..." "⚠"
+    Write-Status ".env not found, creating from template..." "WARN"
     if (Test-Path ".env.example") {
         Copy-Item ".env.example" ".env"
-        Write-Status ".env created (needs Firebase/Supabase keys)" "→"
+        Write-Status ".env created (needs keys for full features)" "INFO"
     }
     else {
-        Write-Status "No .env template found" "⚠"
+        Write-Status "No .env template found" "WARN"
     }
 }
 else {
-    Write-Status ".env found" "✓"
+    Write-Status ".env found" "OK"
 }
 
 # ============================================================================
@@ -186,11 +185,12 @@ Write-Host "`n[5/5] Launching App..." -ForegroundColor Yellow
 Write-Host "`n  Verifying device is ready..." -ForegroundColor Gray
 $devices = flutter devices 2>&1
 
-if ($devices | Select-String "no devices found") {
-    Write-Status "No device available. Please:" "✗"
-    Write-Host "`n  1. Connect an Android device via USB, OR" -ForegroundColor Yellow
-    Write-Host "  2. Start an emulator: flutter emulators --launch <name>" -ForegroundColor Yellow
+if ($devices -match "no devices found") {
+    Write-Status "No device available. Please:" "FAIL"
+    Write-Host "`n  1. Connect Android device via USB, OR" -ForegroundColor Yellow
+    Write-Host "  2. Start emulator: flutter emulators --launch emulator_name" -ForegroundColor Yellow
     Write-Host "  3. Run: flutter run" -ForegroundColor Yellow
+    Pop-Location
     exit 1
 }
 
@@ -199,14 +199,16 @@ Write-Host "`n  Available devices:" -ForegroundColor Gray
 flutter devices
 
 # Build command
-$buildMode = if ($Release) { "--release" } else { "" }
+$buildMode = ""
+if ($Release) { $buildMode = "--release" }
 $runCommand = "flutter run $buildMode"
 
 Write-Host "`n  Launching app..." -ForegroundColor Gray
 Write-Host "  Command: $runCommand" -ForegroundColor Gray
-Write-Host "`n  ▸ Press 'r' to hot reload" -ForegroundColor Cyan
-Write-Host "  ▸ Press 'R' to full restart" -ForegroundColor Cyan
-Write-Host "  ▸ Press 'q' to quit" -ForegroundColor Cyan
+Write-Host "`n  Shortcuts:" -ForegroundColor Cyan
+Write-Host "  - Press 'r' to hot reload" -ForegroundColor Cyan
+Write-Host "  - Press 'R' to full restart" -ForegroundColor Cyan
+Write-Host "  - Press 'q' to quit" -ForegroundColor Cyan
 Write-Host ""
 
 Pop-Location
@@ -218,12 +220,12 @@ Invoke-Expression $runCommand
 # POST-RUN
 # ============================================================================
 
-Write-Host "`n╔════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║  App Session Ended                         ║" -ForegroundColor Green
-Write-Host "╚════════════════════════════════════════════╝`n" -ForegroundColor Green
+Write-Host "`n========================================" -ForegroundColor Green
+Write-Host "   App Session Ended" -ForegroundColor Green
+Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Host "Next steps:" -ForegroundColor Cyan
-Write-Host "  • Run again: .\scripts\setup_and_run.ps1" -ForegroundColor Gray
-Write-Host "  • Run tests: flutter test --coverage" -ForegroundColor Gray
-Write-Host "  • Build release: flutter build appbundle --release" -ForegroundColor Gray
+Write-Host "  - Run again: .\scripts\setup_and_run.ps1" -ForegroundColor Gray
+Write-Host "  - Run tests: flutter test --coverage" -ForegroundColor Gray
+Write-Host "  - Build release: flutter build appbundle --release" -ForegroundColor Gray
 Write-Host ""
