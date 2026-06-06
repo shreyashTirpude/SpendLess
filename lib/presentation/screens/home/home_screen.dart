@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/budget_provider.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
-import '../../widgets/common/loading_widget.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+// import '../../widgets/common/loading_widget.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -26,11 +26,11 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: spent.when(
-        loading: () => const LoadingWidget(),
+        loading: () => const CircularProgressIndicator(),
         error: (_, __) => Center(child: Text('Error loading data')),
         data: (spentAmount) {
           return income.when(
-            loading: () => const LoadingWidget(),
+            loading: () => const CircularProgressIndicator(),
             error: (_, __) => Center(child: Text('Error')),
             data: (incomeAmount) {
               return ListView(
@@ -64,7 +64,7 @@ class HomeScreen extends ConsumerWidget {
                   Text('Recent Transactions', style: AppTextStyles.headingSmall),
                   const SizedBox(height: 12),
                   transactions.when(
-                    loading: () => const LoadingWidget(),
+                    loading: () => const CircularProgressIndicator(),
                     error: (_, __) => const Text('Error'),
                     data: (txns) {
                       return Column(

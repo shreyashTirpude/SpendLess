@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../theme/app_colors.dart';
+import '../../../core/theme/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -38,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen> {
             const SizedBox(height: 20),
             Text(
               'SpendLens',
-              style: Theme.of(context).textTheme.headingLarge?.copyWith(
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                 color: AppColors.primary,
                 fontSize: 28,
               ),

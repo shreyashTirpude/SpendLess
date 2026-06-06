@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/insights_provider.dart';
 import '../../providers/transaction_provider.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
 
 class InsightsScreen extends ConsumerWidget {
   const InsightsScreen({Key? key}) : super(key: key);

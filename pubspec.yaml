@@ -89,6 +89,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
   flutter_lints: ^4.0.0
   build_runner: ^2.4.11
   riverpod_generator: ^2.4.3
@@ -104,13 +106,3 @@ flutter:
     - assets/icons/
     - assets/lottie/
     - .env
-  fonts:
-    - family: DMSans
-      fonts:
-        - asset: assets/fonts/DMSans-Regular.ttf
-        - asset: assets/fonts/DMSans-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/DMSans-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/DMSans-Bold.ttf
-          weight: 700

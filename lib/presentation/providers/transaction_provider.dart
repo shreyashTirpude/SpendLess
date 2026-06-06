@@ -27,12 +27,12 @@ final categoryTotalsProvider = FutureProvider<Map<String, double>>((ref) async {
 
 final totalSpentProvider = FutureProvider<double>((ref) async {
   final txns = await ref.watch(transactionsProvider.future);
-  return txns.where((t) => !t.isCredit && !t.isIgnored).fold(0.0, (sum, t) => sum + t.amount);
+  return txns.where((t) => !t.isCredit && !t.isIgnored).fold<double>(0.0, (sum, t) => sum + t.amount);
 });
 
 final totalIncomeProvider = FutureProvider<double>((ref) async {
   final txns = await ref.watch(transactionsProvider.future);
-  return txns.where((t) => t.isCredit && !t.isIgnored).fold(0.0, (sum, t) => sum + t.amount);
+  return txns.where((t) => t.isCredit && !t.isIgnored).fold<double>(0.0, (sum, t) => sum + t.amount);
 });
 
 final dailySpendProvider = FutureProvider<List<(DateTime, double)>>((ref) async {

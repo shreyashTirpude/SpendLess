@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/transaction_provider.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
-import '../../utils/category_engine.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/category_engine.dart';
 
 class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({Key? key}) : super(key: key);
@@ -97,7 +97,7 @@ class BudgetScreen extends ConsumerWidget {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
-                                value: percent.clamp(0.0, 1.0),
+                                value: percent.clamp(0.0, 1.0).toDouble(),
                                 backgroundColor: AppColors.cardBorder,
                                 valueColor: AlwaysStoppedAnimation<Color>(color),
                                 minHeight: 6,
