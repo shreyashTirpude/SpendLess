@@ -1,0 +1,41 @@
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.iml
+
+# Secrets — NEVER commit these
+.env
+.env.*
+.env.local
+.env.production
+google-services.json
+GoogleService-Info.plist
+android/app/google-services.json
+lib/core/config/secrets.dart
+
+# Android signing
+*.keystore
+*.jks
+key.properties
+android/app/keystore/
+
+# IDE
+.idea/
+.vscode/settings.json
+*.iml
+
+# Playwright setup scripts
+scripts/.github_config.json
+node_modules/
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage/
+.coverage
