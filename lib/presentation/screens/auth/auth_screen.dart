@@ -88,6 +88,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ],
               ),
             ),
+            // Demo mode skip button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: Column(
+                children: [
+                  const Divider(color: AppColors.cardBorder),
+                  const SizedBox(height: 12),
+                  Text(
+                    'For demo — skip login',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => context.go('/home'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textMuted,
+                        side: const BorderSide(color: AppColors.cardBorder),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Continue without login →'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
