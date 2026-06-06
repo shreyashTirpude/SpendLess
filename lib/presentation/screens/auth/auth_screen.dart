@@ -154,7 +154,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             child: ElevatedButton(
               onPressed: () {
                 ref.read(authProvider.notifier).sendPhoneOtp(_phoneController.text);
-                context.go('/auth/otp');
+                context.go('/auth');
               },
               child: Text(
                 'Send OTP',

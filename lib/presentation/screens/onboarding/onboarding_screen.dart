@@ -86,7 +86,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         if (_currentPage == 3) {
-                          context.go('/auth/phone');
+                          context.go('/auth');
                         } else {
                           _pageController.nextPage(
                             duration: const Duration(milliseconds: 300),
