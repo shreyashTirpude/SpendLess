@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/security/security_service.dart';
 import '../../../data/local/hive_service.dart';
@@ -350,14 +351,70 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmClearData(BuildContext context, WidgetRef ref) async {
-    final confirm = await showDialog<bool>(
+    // Step 1: offer to export first
+    final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: context.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Clear All Data?', style: Theme.of(context).textTheme.headlineSmall),
         content: Text(
-          'This will permanently delete all transactions, budgets, and settings. This cannot be undone.',
+          'Would you like to email yourself a copy of your transaction history before deleting everything?',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: context.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: context.textMuted)),
+          ),
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx, 'skip'),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+              foregroundColor: AppColors.error,
+            ),
+            child: const Text('Skip, just delete'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, 'export'),
+            child: const Text('Export first'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == null) return;
+
+    if (choice == 'export') {
+      final txns = HiveService.transactions.values.toList()
+        ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+
+      if (txns.isNotEmpty) {
+        final buffer = StringBuffer();
+        buffer.writeln('Date,Merchant,Category,Amount,Type,Account');
+        for (final t in txns) {
+          final date = DateFormat('yyyy-MM-dd').format(t.transactionDate);
+          final type = t.isCredit ? 'Credit' : 'Debit';
+          final acct = t.accountLast4 ?? '';
+          buffer.writeln('$date,"${t.merchant}","${t.category}",${t.amount},$type,$acct');
+        }
+        await Share.share(
+          buffer.toString(),
+          subject: 'SpendLens Transaction Backup — ${DateFormat('d MMM yyyy').format(DateTime.now())}',
+        );
+      }
+      if (!context.mounted) return;
+    }
+
+    // Step 2: final confirmation before delete
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Delete Everything?', style: Theme.of(context).textTheme.headlineSmall),
+        content: Text(
+          'This will permanently delete all transactions, budgets, and settings. Cannot be undone.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: context.textSecondary),
         ),
         actions: [
@@ -374,7 +431,7 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true || !context.mounted) return;
 
     await HiveService.transactions.clear();
     await HiveService.budgets.clear();

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/onboarding/onboarding_screen.dart';
@@ -11,51 +12,89 @@ import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/home/main_shell.dart';
 import '../../presentation/screens/subscriptions/subscriptions_screen.dart';
 
+// Slide-in from right + fade-in combo for full-screen pushes
+Page<void> _slidePage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final slide = Tween<Offset>(
+        begin: const Offset(0.06, 0.0),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+
+      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+
+      return FadeTransition(
+        opacity: fade,
+        child: SlideTransition(position: slide, child: child),
+      );
+    },
+  );
+}
+
+// Pure fade for splash/onboarding (no directional slide)
+Page<void> _fadePage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 350),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+        child: child,
+      );
+    },
+  );
+}
+
 final appRouter = GoRouter(
   initialLocation: '/splash',
   routes: [
     GoRoute(
       path: '/splash',
-      builder: (_, __) => const SplashScreen(),
+      pageBuilder: (context, state) => _fadePage(state, const SplashScreen()),
     ),
     GoRoute(
       path: '/onboarding',
-      builder: (_, __) => const OnboardingScreen(),
+      pageBuilder: (context, state) => _fadePage(state, const OnboardingScreen()),
     ),
     GoRoute(
       path: '/auth',
-      builder: (_, __) => const AuthScreen(),
+      pageBuilder: (context, state) => _slidePage(state, const AuthScreen()),
     ),
     GoRoute(
       path: '/lock',
-      builder: (_, __) => const LockScreen(),
+      pageBuilder: (context, state) => _fadePage(state, const LockScreen()),
     ),
     GoRoute(
       path: '/subscriptions',
-      builder: (_, __) => const SubscriptionsScreen(),
+      pageBuilder: (context, state) => _slidePage(state, const SubscriptionsScreen()),
     ),
     ShellRoute(
       builder: (context, state, child) => MainShell(child: child),
       routes: [
         GoRoute(
           path: '/home',
-          builder: (_, __) => const HomeScreen(),
+          pageBuilder: (context, state) => _fadePage(state, const HomeScreen()),
         ),
         GoRoute(
           path: '/transactions',
-          builder: (_, __) => const TransactionsScreen(),
+          pageBuilder: (context, state) => _fadePage(state, const TransactionsScreen()),
         ),
         GoRoute(
           path: '/budget',
-          builder: (_, __) => const BudgetScreen(),
+          pageBuilder: (context, state) => _fadePage(state, const BudgetScreen()),
         ),
         GoRoute(
           path: '/insights',
-          builder: (_, __) => const InsightsScreen(),
+          pageBuilder: (context, state) => _fadePage(state, const InsightsScreen()),
         ),
         GoRoute(
           path: '/settings',
-          builder: (_, __) => const SettingsScreen(),
+          pageBuilder: (context, state) => _fadePage(state, const SettingsScreen()),
         ),
       ],
     ),

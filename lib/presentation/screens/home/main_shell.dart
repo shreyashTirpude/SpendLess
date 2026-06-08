@@ -58,7 +58,16 @@ class _MainShellState extends ConsumerState<MainShell> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: widget.child,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        ),
+        child: KeyedSubtree(key: ValueKey(idx), child: widget.child),
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(

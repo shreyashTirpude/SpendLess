@@ -39,6 +39,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
     final weeklyPattern = ref.watch(weeklyPatternProvider);
     final projected = ref.watch(projectedSpendProvider);
     final streak = ref.watch(noSpendStreakProvider);
+    final dayRanking = ref.watch(dayOfWeekRankingProvider);
 
     return Scaffold(
       backgroundColor: context.bgColor,
@@ -114,6 +115,18 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
               data: (days) => days > 0
                   ? _StreakCard(days: days)
                   : const SizedBox.shrink(),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Day-of-week spending rank
+            dayRanking.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (ranks) {
+                if (ranks.every((r) => r.total == 0)) return const SizedBox.shrink();
+                return _DayRankCard(ranks: ranks);
+              },
             ),
 
             const SizedBox(height: 16),
@@ -1117,6 +1130,176 @@ class _LegendDot extends StatelessWidget {
       ],
     );
   }
+}
+
+// ── Day of Week Spending Rank ─────────────────────────────────────────────────
+
+class _DayRankCard extends StatelessWidget {
+  final List<DaySpendRank> ranks;
+  const _DayRankCard({required this.ranks});
+
+  static const _medals = ['🥇', '🥈', '🥉'];
+  static const _dayColors = {
+    'Monday':    Color(0xFF6366F1),
+    'Tuesday':   Color(0xFF22C55E),
+    'Wednesday': Color(0xFFF59E0B),
+    'Thursday':  Color(0xFFEC4899),
+    'Friday':    Color(0xFF3ABEFF),
+    'Saturday':  Color(0xFFF97316),
+    'Sunday':    Color(0xFF8B5CF6),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final maxTotal = ranks.map((r) => r.total).fold(0.0, (a, b) => a > b ? a : b);
+    final grandTotal = ranks.fold(0.0, (s, r) => s + r.total);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.cardBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Spending by Day', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Which days you spend the most',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.textMuted),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'This month',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          ...ranks.map((r) {
+            final barRatio = maxTotal > 0 ? (r.total / maxTotal).clamp(0.0, 1.0) : 0.0;
+            final pct = grandTotal > 0 ? (r.total / grandTotal * 100).toStringAsFixed(0) : '0';
+            final medal = r.rank <= 3 ? _medals[r.rank - 1] : null;
+            final color = _dayColors[r.dayName] ?? AppColors.primary;
+            final isTop = r.rank == 1;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  // Rank indicator
+                  SizedBox(
+                    width: 32,
+                    child: medal != null
+                        ? Text(medal, style: const TextStyle(fontSize: 18))
+                        : Center(
+                            child: Text(
+                              '${r.rank}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: context.textMuted,
+                              ),
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Day name
+                  SizedBox(
+                    width: 84,
+                    child: Text(
+                      r.dayName,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: isTop ? FontWeight.w800 : FontWeight.w500,
+                        color: isTop ? color : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Bar
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0.0, end: barRatio),
+                            duration: Duration(milliseconds: 500 + r.rank * 80),
+                            curve: Curves.easeOutCubic,
+                            builder: (_, v, __) => LinearProgressIndicator(
+                              value: v,
+                              minHeight: isTop ? 8 : 6,
+                              backgroundColor: color.withValues(alpha: 0.1),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                color.withValues(alpha: isTop ? 1.0 : 0.75),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (r.count > 0) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            '${r.count} txn${r.count != 1 ? 's' : ''}',
+                            style: TextStyle(fontSize: 9, color: context.textMuted),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Amount + pct
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        r.total > 0 ? '₹${_fmtDay(r.total)}' : '—',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: isTop ? FontWeight.w800 : FontWeight.w600,
+                          color: isTop ? color : null,
+                        ),
+                      ),
+                      if (r.total > 0)
+                        Text(
+                          '$pct%',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: context.textMuted,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+String _fmtDay(double v) {
+  if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
+  if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
+  return v.toStringAsFixed(0);
 }
 
 String _fmt(double amount) {

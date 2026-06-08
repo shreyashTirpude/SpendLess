@@ -36,6 +36,49 @@ final monthComparisonProvider = FutureProvider<Map<String, (double, double)>>((r
   return result;
 });
 
+// Day-of-week spending ranked highest to lowest
+typedef DaySpendRank = ({
+  String dayName,
+  String dayShort,
+  double total,
+  int count,
+  int rank,
+});
+
+final dayOfWeekRankingProvider = FutureProvider<List<DaySpendRank>>((ref) async {
+  final txns = await ref.watch(transactionsProvider.future);
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const dayShorts = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  final totals = List<double>.filled(7, 0.0);
+  final counts = List<int>.filled(7, 0);
+
+  for (final t in txns.where((t) => !t.isCredit && !t.isIgnored)) {
+    final dow = t.transactionDate.weekday - 1; // 0=Mon, 6=Sun
+    totals[dow] += t.amount;
+    counts[dow]++;
+  }
+
+  final items = List.generate(7, (i) => (
+    dayName: dayNames[i],
+    dayShort: dayShorts[i],
+    total: totals[i],
+    count: counts[i],
+  ))..sort((a, b) => b.total.compareTo(a.total));
+
+  final result = <DaySpendRank>[];
+  for (int i = 0; i < items.length; i++) {
+    result.add((
+      dayName: items[i].dayName,
+      dayShort: items[i].dayShort,
+      total: items[i].total,
+      count: items[i].count,
+      rank: i + 1,
+    ));
+  }
+  return result;
+});
+
 // Weekly spending pattern (0=Mon … 6=Sun) — avg spend per weekday
 final weeklyPatternProvider = FutureProvider<List<double>>((ref) async {
   final txns = await ref.watch(transactionsProvider.future);

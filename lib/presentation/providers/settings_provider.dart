@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import '../../data/local/hive_service.dart';
 import '../../domain/models/user_profile.dart';
 
@@ -6,41 +7,38 @@ import '../../domain/models/user_profile.dart';
 
 class UserProfileNotifier extends Notifier<UserProfile?> {
   @override
-  UserProfile? build() {
+  UserProfile? build() => _load();
+
+  UserProfile? _load() {
     final profiles = HiveService.user.values;
     return profiles.isEmpty ? null : profiles.first;
   }
 
+  Future<UserProfile> _ensureProfile() async {
+    var profile = state;
+    if (profile == null) {
+      profile = UserProfile(
+        id: const Uuid().v4(),
+        phone: '',
+        createdAt: DateTime.now(),
+      );
+      await HiveService.user.add(profile);
+    }
+    return profile;
+  }
+
   Future<void> updateName(String name) async {
-    final profile = state;
-    if (profile == null) return;
+    final profile = await _ensureProfile();
     profile.name = name.trim();
     await profile.save();
-    state = UserProfile(
-      id: profile.id,
-      phone: profile.phone,
-      name: profile.name,
-      monthlyBudget: profile.monthlyBudget,
-      adsRemoved: profile.adsRemoved,
-      biometricEnabled: profile.biometricEnabled,
-      createdAt: profile.createdAt,
-    );
+    state = _load();
   }
 
   Future<void> updatePhone(String phone) async {
-    final profile = state;
-    if (profile == null) return;
+    final profile = await _ensureProfile();
     profile.phone = phone.trim();
     await profile.save();
-    state = UserProfile(
-      id: profile.id,
-      phone: profile.phone,
-      name: profile.name,
-      monthlyBudget: profile.monthlyBudget,
-      adsRemoved: profile.adsRemoved,
-      biometricEnabled: profile.biometricEnabled,
-      createdAt: profile.createdAt,
-    );
+    state = _load();
   }
 }
 
