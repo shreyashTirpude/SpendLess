@@ -3,12 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/transaction.dart';
 import '../../data/repositories/transaction_repository_impl.dart';
 import '../../data/local/hive_service.dart';
+import '../../core/utils/merchant_normalizer.dart';
+import 'cache_provider.dart';
 
 final transactionRepositoryProvider = Provider((ref) {
   return TransactionRepositoryImpl();
 });
 
+// All providers watch transactionCacheProvider — one bump refreshes everything
 final transactionsProvider = FutureProvider<List<Transaction>>((ref) async {
+  ref.watch(transactionCacheProvider);
   final repo = ref.watch(transactionRepositoryProvider);
   return repo.getThisMonth();
 });
@@ -98,11 +102,170 @@ final categoryMonthComparisonProvider = FutureProvider.family<(double, double), 
 });
 
 final allTransactionsProvider = FutureProvider<List<Transaction>>((ref) async {
+  ref.watch(transactionCacheProvider);
   final all = HiveService.transactions.values
       .where((t) => !t.isIgnored)
       .toList()
     ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
   return all;
+});
+
+// ── Merchant intelligence: per-merchant analytics ─────────────────────────────
+
+typedef MerchantStats = ({
+  String merchant,
+  String canonical,
+  double totalSpent,
+  int txnCount,
+  double avgOrder,
+  double maxOrder,
+  String topCategory,
+});
+
+final merchantIntelligenceProvider = FutureProvider<List<MerchantStats>>((ref) async {
+  ref.watch(transactionCacheProvider);
+  final all = HiveService.transactions.values
+      .where((t) => !t.isCredit && !t.isIgnored)
+      .toList();
+
+  final grouped = <String, List<double>>{};
+  final categoryMap = <String, Map<String, int>>{};
+
+  for (final t in all) {
+    final canonical = MerchantNormalizer.normalize(t.merchant);
+    grouped.putIfAbsent(canonical, () => []).add(t.amount);
+    final cats = categoryMap.putIfAbsent(canonical, () => {});
+    cats[t.category] = (cats[t.category] ?? 0) + 1;
+  }
+
+  return grouped.entries.map((e) {
+    final amounts = e.value;
+    final cats = categoryMap[e.key]!;
+    final topCat = cats.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+    return (
+      merchant: e.key,
+      canonical: e.key,
+      totalSpent: amounts.reduce((a, b) => a + b),
+      txnCount: amounts.length,
+      avgOrder: amounts.reduce((a, b) => a + b) / amounts.length,
+      maxOrder: amounts.reduce((a, b) => a > b ? a : b),
+      topCategory: topCat,
+    );
+  }).toList()
+    ..sort((a, b) => b.totalSpent.compareTo(a.totalSpent));
+});
+
+// ── Tax savings tracker ────────────────────────────────────────────────────────
+
+typedef TaxInsights = ({
+  double health80D,
+  double investment80C,
+  double rentHRA,
+  double totalDeductions,
+  double estimatedTaxSaving,
+});
+
+final taxInsightsProvider = FutureProvider<TaxInsights>((ref) async {
+  ref.watch(transactionCacheProvider);
+  final all = HiveService.transactions.values
+      .where((t) => !t.isCredit && !t.isIgnored)
+      .toList();
+
+  const healthKeywords = ['pharmacy', 'hospital', 'clinic', 'health', 'medical', 'doctor', 'insurance'];
+  const investmentKeywords = ['ppf', 'elss', 'nps', 'lic', 'mutual fund', 'fd', 'zerodha', 'groww', 'sip'];
+  const rentKeywords = ['rent', 'rental', 'house rent', 'pg', 'hostel', 'emi'];
+
+  double health80D = 0, investment80C = 0, rentHRA = 0;
+
+  for (final t in all) {
+    final lower = '${t.merchant} ${t.category}'.toLowerCase();
+    if (healthKeywords.any((k) => lower.contains(k))) health80D += t.amount;
+    if (investmentKeywords.any((k) => lower.contains(k))) investment80C += t.amount;
+    if (rentKeywords.any((k) => lower.contains(k))) rentHRA += t.amount;
+  }
+
+  // Cap at statutory limits
+  health80D = health80D.clamp(0, 25000);
+  investment80C = investment80C.clamp(0, 150000);
+  rentHRA = rentHRA.clamp(0, 240000); // 20k/month max
+
+  final totalDeductions = health80D + investment80C + rentHRA;
+  // Rough tax saving at 30% slab
+  final estimatedTaxSaving = totalDeductions * 0.30;
+
+  return (
+    health80D: health80D,
+    investment80C: investment80C,
+    rentHRA: rentHRA,
+    totalDeductions: totalDeductions,
+    estimatedTaxSaving: estimatedTaxSaving,
+  );
+});
+
+// ── Cash flow forecast ────────────────────────────────────────────────────────
+
+typedef CashFlowForecast = ({
+  double projectedSpend,
+  double projectedSavings,
+  double dailyBudget,
+  int daysUntilEmpty,
+  bool isOnTrack,
+});
+
+final cashFlowForecastProvider = FutureProvider<CashFlowForecast>((ref) async {
+  ref.watch(transactionCacheProvider);
+  final stats = await ref.watch(homeStatsProvider.future);
+
+  final now = DateTime.now();
+  final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+  final daysPassed = now.day;
+  final daysLeft = daysInMonth - daysPassed;
+
+  final dailyAvg = daysPassed > 0 ? stats.totalSpent / daysPassed : 0.0;
+  final projectedSpend = dailyAvg * daysInMonth;
+  final projectedSavings = stats.totalIncome - projectedSpend;
+
+  final remaining = stats.totalIncome - stats.totalSpent;
+  final dailyBudget = daysLeft > 0 ? remaining / daysLeft : 0.0;
+  final daysUntilEmpty = dailyAvg > 0 ? (remaining / dailyAvg).floor() : 999;
+
+  return (
+    projectedSpend: projectedSpend,
+    projectedSavings: projectedSavings,
+    dailyBudget: dailyBudget.clamp(0.0, double.infinity),
+    daysUntilEmpty: daysUntilEmpty.clamp(0, 999),
+    isOnTrack: projectedSpend <= stats.totalIncome,
+  );
+});
+
+// ── Account balance from parsed SMS ──────────────────────────────────────────
+
+typedef AccountBalance = ({String accountLast4, double balance, DateTime updatedAt});
+
+final accountBalancesProvider = Provider<List<AccountBalance>>((ref) {
+  ref.watch(transactionCacheProvider);
+  // Read stored per-account balances from settings box
+  final raw = HiveService.settings.get('account_balances', defaultValue: <String, dynamic>{}) as Map;
+  final result = <AccountBalance>[];
+  for (final entry in raw.entries) {
+    final data = entry.value as Map?;
+    if (data == null) continue;
+    result.add((
+      accountLast4: entry.key as String,
+      balance: (data['balance'] as num?)?.toDouble() ?? 0.0,
+      updatedAt: data['updatedAt'] != null
+          ? DateTime.tryParse(data['updatedAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
+    ));
+  }
+  result.sort((a, b) => b.balance.compareTo(a.balance));
+  return result;
+});
+
+final totalAccountBalanceProvider = Provider<double>((ref) {
+  final accounts = ref.watch(accountBalancesProvider);
+  if (accounts.isEmpty) return 0.0;
+  return accounts.fold(0.0, (s, a) => s + a.balance);
 });
 
 // (year, month) selected in transactions screen
@@ -114,7 +277,7 @@ final selectedMonthProvider = StateProvider<(int, int)>((ref) {
 final selectedMonthTransactionsProvider = FutureProvider<List<Transaction>>((ref) async {
   final (year, month) = ref.watch(selectedMonthProvider);
   final repo = ref.watch(transactionRepositoryProvider);
-  final txns = await repo.getByMonth(year, month);
+  final txns = repo.getByMonth(year, month);
   return txns..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
 });
 

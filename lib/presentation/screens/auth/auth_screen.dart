@@ -13,104 +13,215 @@ class AuthScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
-  late PageController _pageController;
-  int _currentTab = 0;
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _emailController    = TextEditingController();
   final _passwordController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController();
-  }
+  final _nameController     = TextEditingController();
+  bool _isSignUp    = false;
+  bool _loading     = false;
+  bool _obscure     = true;
 
   @override
   void dispose() {
-    _pageController.dispose();
-    _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _nameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final email    = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      _snack('Enter email and password');
+      return;
+    }
+    setState(() => _loading = true);
+    bool ok;
+    if (_isSignUp) {
+      ok = await ref.read(authProvider.notifier).signUpWithEmail(
+            _nameController.text.trim(), email, password);
+    } else {
+      ok = await ref.read(authProvider.notifier).loginWithEmail(email, password);
+    }
+    setState(() => _loading = false);
+    if (ok && mounted) {
+      context.go('/home');
+    } else if (mounted) {
+      _snack(_isSignUp ? 'Sign-up failed — try a different email' : 'Login failed — check your credentials');
+    }
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: AppColors.surface),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authProvider);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Login'),
+        title: const Text('SpendLens'),
         centerTitle: true,
+        backgroundColor: AppColors.background,
+        elevation: 0,
       ),
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildTabButton(
-                      icon: '📱',
-                      label: 'Phone',
-                      isSelected: _currentTab == 0,
-                      onTap: () {
-                        setState(() => _currentTab = 0);
-                        _pageController.animateToPage(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildTabButton(
-                      icon: '📧',
-                      label: 'Email',
-                      isSelected: _currentTab == 1,
-                      onTap: () {
-                        setState(() => _currentTab = 1);
-                        _pageController.animateToPage(1, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
             Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                onPageChanged: (index) => setState(() => _currentTab = index),
-                children: [
-                  _buildPhoneTab(),
-                  _buildEmailTab(),
-                ],
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Header ──────────────────────────────────────────
+                    const SizedBox(height: 16),
+                    Text(
+                      _isSignUp ? 'Create account' : 'Welcome back',
+                      style: AppTextStyles.headingMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _isSignUp
+                          ? 'Start tracking your expenses automatically'
+                          : 'Sign in to continue',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // ── Name (sign-up only) ──────────────────────────────
+                    if (_isSignUp) ...[
+                      _label('Full name'),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _nameController,
+                        textCapitalization: TextCapitalization.words,
+                        style: AppTextStyles.bodyMedium,
+                        decoration: const InputDecoration(
+                          hintText: 'Shreyash Tirpude',
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // ── Email ────────────────────────────────────────────
+                    _label('Email address'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: AppTextStyles.bodyMedium,
+                      decoration: const InputDecoration(
+                        hintText: 'you@gmail.com',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Password ─────────────────────────────────────────
+                    _label('Password'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscure,
+                      style: AppTextStyles.bodyMedium,
+                      decoration: InputDecoration(
+                        hintText: _isSignUp ? 'Min 6 characters' : '••••••••',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // ── Submit button ────────────────────────────────────
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: _loading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : Text(
+                                _isSignUp ? 'Create Account' : 'Login',
+                                style: AppTextStyles.labelLarge,
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Toggle sign-up / login ────────────────────────────
+                    Center(
+                      child: TextButton(
+                        onPressed: () => setState(() {
+                          _isSignUp = !_isSignUp;
+                          _nameController.clear();
+                        }),
+                        child: Text(
+                          _isSignUp
+                              ? 'Already have an account? Login'
+                              : "Don't have an account? Sign up",
+                          style: TextStyle(color: AppColors.primary, fontSize: 14),
+                        ),
+                      ),
+                    ),
+
+                    // ── Info card ─────────────────────────────────────────
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Text('🔒', style: TextStyle(fontSize: 18)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Free forever · No credit card · Your data stays on your device',
+                              style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            // Demo mode skip button
+
+            // ── Skip button ───────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
               child: Column(
                 children: [
                   const Divider(color: AppColors.cardBorder),
-                  const SizedBox(height: 12),
-                  Text(
-                    'For demo — skip login',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
-                  ),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
+                    height: 48,
                     child: OutlinedButton(
                       onPressed: () => context.go('/home'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.textMuted,
                         side: const BorderSide(color: AppColors.cardBorder),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Continue without login →'),
+                      child: const Text('Continue without login'),
                     ),
                   ),
                 ],
@@ -122,189 +233,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 
-  Widget _buildTabButton({
-    required String icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.cardBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.cardBorder,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: AppTextStyles.labelMedium.copyWith(
-                color: isSelected ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPhoneTab() {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Enter your phone number',
-            style: AppTextStyles.headingMedium,
-          ),
-          const SizedBox(height: 32),
-          TextField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(
-              prefixText: '+91 ',
-              hintText: '98765 43210',
-              labelText: 'Phone Number',
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                ref.read(authProvider.notifier).sendPhoneOtp(_phoneController.text);
-                context.go('/auth');
-              },
-              child: Text(
-                'Send OTP',
-                style: AppTextStyles.labelLarge.copyWith(color: Colors.white),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              'Used for login only. Never shared.',
-              style: AppTextStyles.caption,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmailTab() {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Login with Email', style: AppTextStyles.headingMedium),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password'),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  ref.read(authProvider.notifier).loginWithEmail(
-                    _emailController.text,
-                    _passwordController.text,
-                  );
-                  context.go('/home');
-                },
-                child: Text(
-                  'Login',
-                  style: AppTextStyles.labelLarge.copyWith(color: Colors.white),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => _buildSignupDialog(),
-                  );
-                },
-                child: const Text('Create Account'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: TextButton(
-                onPressed: () {},
-                child: const Text('Forgot Password?'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSignupDialog() {
-    final nameController = TextEditingController();
-    return AlertDialog(
-      backgroundColor: AppColors.cardBg,
-      title: const Text('Create Account'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: nameController,
-            decoration: const InputDecoration(labelText: 'Name'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _emailController,
-            decoration: const InputDecoration(labelText: 'Email'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _passwordController,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        ElevatedButton(
-          onPressed: () {
-            ref.read(authProvider.notifier).signUpWithEmail(
-              nameController.text,
-              _emailController.text,
-              _passwordController.text,
-            );
-            Navigator.pop(context);
-            context.go('/home');
-          },
-          child: const Text('Sign Up'),
-        ),
-      ],
-    );
-  }
+  Widget _label(String text) =>
+      Text(text, style: AppTextStyles.labelMedium.copyWith(color: AppColors.textMuted));
 }

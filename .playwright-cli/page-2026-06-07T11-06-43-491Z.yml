@@ -1,0 +1,16 @@
+- generic [ref=e5] [cursor=pointer]:
+  - generic:
+    - generic:
+      - generic:
+        - dialog:
+          - generic:
+            - dialog:
+              - heading "Transactions" [active] [level=2] [ref=e38]
+              - group [ref=e39]
+              - button [ref=e40]
+          - generic:
+            - button "Home Tab 1 of 5" [ref=e33]
+            - button "Transactions Tab 2 of 5" [ref=e34]
+            - button "Budget Tab 3 of 5" [ref=e35]
+            - button "Insights Tab 4 of 5" [ref=e36]
+            - button "Settings Tab 5 of 5" [ref=e37]

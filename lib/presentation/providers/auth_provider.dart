@@ -1,71 +1,46 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
   return AuthNotifier();
 });
 
 class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
-  AuthNotifier() : super(AsyncValue.data(Supabase.instance.client.auth.currentUser));
-
-  Future<void> sendPhoneOtp(String phone) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      await Supabase.instance.client.auth.signInWithOtp(phone: '+91$phone');
-      return state.value;
-    });
-  }
-
-  Future<bool> verifyPhoneOtp(String phone, String token) async {
-    state = const AsyncValue.loading();
-    final result = await AsyncValue.guard(() async {
-      final response = await Supabase.instance.client.auth.verifyOTP(
-        phone: '+91$phone',
-        token: token,
-        type: OtpType.sms,
-      );
-      return response.user;
-    });
-
-    state = result.whenData((user) => user);
-    return result.hasValue && result.value != null;
-  }
+  AuthNotifier() : super(AsyncValue.data(FirebaseAuth.instance.currentUser));
 
   Future<bool> loginWithEmail(String email, String password) async {
     state = const AsyncValue.loading();
-    final result = await AsyncValue.guard(() async {
-      final response = await Supabase.instance.client.auth
-          .signInWithPassword(email: email, password: password);
-      return response.user;
-    });
-
-    state = result.whenData((user) => user);
-    return result.hasValue && result.value != null;
+    try {
+      final result = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email, password: password,
+      );
+      state = AsyncValue.data(result.user);
+      return result.user != null;
+    } on FirebaseAuthException catch (e) {
+      state = AsyncValue.error(e.message ?? 'Login failed', StackTrace.current);
+      return false;
+    }
   }
 
   Future<bool> signUpWithEmail(String name, String email, String password) async {
     state = const AsyncValue.loading();
-    final result = await AsyncValue.guard(() async {
-      final response = await Supabase.instance.client.auth.signUp(
-        email: email,
-        password: password,
-        data: {'name': name},
+    try {
+      final result = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email, password: password,
       );
-      if (response.user != null) {
-        await Supabase.instance.client
-            .from('profiles')
-            .update({'name': name})
-            .eq('id', response.user!.id);
+      if (result.user != null && name.isNotEmpty) {
+        await result.user!.updateDisplayName(name);
       }
-      return response.user;
-    });
-
-    state = result.whenData((user) => user);
-    return result.hasValue && result.value != null;
+      state = AsyncValue.data(result.user);
+      return result.user != null;
+    } on FirebaseAuthException catch (e) {
+      state = AsyncValue.error(e.message ?? 'Signup failed', StackTrace.current);
+      return false;
+    }
   }
 
   Future<void> signOut() async {
-    await Supabase.instance.client.auth.signOut();
+    await FirebaseAuth.instance.signOut();
     state = const AsyncValue.data(null);
   }
 }

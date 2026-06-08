@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/local/hive_service.dart';
+import '../../../services/password_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -18,7 +21,25 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _navigateAfterDelay() async {
     await Future.delayed(const Duration(seconds: 2));
-    if (mounted) context.go('/onboarding');
+    if (!mounted) return;
+    try {
+      // Primary check: local onboarding flag (works offline)
+      final isOnboarded = HiveService.settings.get('isOnboarded', defaultValue: false) as bool;
+      if (!isOnboarded) {
+        // Also check Firebase as fallback
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) {
+          context.go('/onboarding');
+          return;
+        }
+        // Firebase user exists but local flag not set — fix it and proceed
+        await HiveService.settings.put('isOnboarded', true);
+      }
+      final locked = await PasswordService.hasPassword();
+      context.go(locked ? '/lock' : '/home');
+    } catch (_) {
+      context.go('/onboarding');
+    }
   }
 
   @override

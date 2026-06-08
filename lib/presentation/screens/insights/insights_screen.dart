@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../providers/insights_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/recurring_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/category_engine.dart';
 
@@ -146,6 +148,11 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                 return _TopMerchantsCard(merchants: merchantList);
               },
             ),
+
+            const SizedBox(height: 16),
+
+            // Subscriptions teaser card
+            _SubscriptionsTeaserCard(ref: ref),
           ],
         ),
       ),
@@ -1035,6 +1042,60 @@ class _TopMerchantsCard extends StatelessWidget {
             );
           }),
         ],
+      ),
+    );
+  }
+}
+
+// ── Subscriptions Teaser Card ─────────────────────────────────────────────────
+
+class _SubscriptionsTeaserCard extends ConsumerWidget {
+  final WidgetRef ref;
+  const _SubscriptionsTeaserCard({required this.ref});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items = ref.watch(recurringItemsProvider);
+    final total = ref.watch(monthlyRecurringTotalProvider);
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () => context.push('/subscriptions'),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: context.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: context.cardBorderColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Center(child: Text('🔄', style: TextStyle(fontSize: 22))),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Subscriptions & Recurring', style: Theme.of(context).textTheme.labelLarge),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${items.length} active · ₹${_fmt(total)}/month',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: context.textMuted),
+          ],
+        ),
       ),
     );
   }

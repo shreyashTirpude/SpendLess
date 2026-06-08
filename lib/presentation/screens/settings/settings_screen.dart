@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/security/security_service.dart';
 import '../../../data/local/hive_service.dart';
 import '../../../services/password_service.dart';
+import '../../../services/sms_scanner_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/transaction_provider.dart';
-import '../../providers/budget_provider.dart';
+import '../../providers/cache_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -125,6 +127,20 @@ class SettingsScreen extends ConsumerWidget {
                     )
                   : null,
             ),
+            if (settings.appLockEnabled)
+              _ActionTile(
+                icon: '🔒',
+                title: 'Lock App Now',
+                subtitle: 'Go to lock screen immediately',
+                onTap: () => context.go('/lock'),
+              ),
+            _ActionTile(
+              icon: '🚪',
+              title: 'Logout',
+              subtitle: 'Sign out and return to onboarding',
+              onTap: () => _confirmLogout(context, ref),
+              isDestructive: true,
+            ),
             const SizedBox(height: 20),
 
             // ── Notifications ────────────────────────────────────────────────
@@ -164,7 +180,7 @@ class SettingsScreen extends ConsumerWidget {
               icon: '🔄',
               title: 'Re-scan SMS Inbox',
               subtitle: 'Re-parse last 6 months of bank messages',
-              onTap: () => _rescanSms(context),
+              onTap: () => _rescanSms(context, ref),
             ),
             _ActionTile(
               icon: '🗑️',
@@ -369,14 +385,22 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _rescanSms(BuildContext context) async {
+  Future<void> _rescanSms(BuildContext context, WidgetRef ref) async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Re-scanning SMS inbox…')),
     );
-    await Future.delayed(const Duration(seconds: 1));
+    final added = await SmsScannerService.scanInbox();
+    if (added > 0) {
+      ref.read(transactionCacheProvider.notifier).bump();
+    }
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('SMS re-scan started. New transactions will appear shortly.')),
+        SnackBar(
+          content: Text(added > 0
+              ? 'Added $added new transaction${added != 1 ? 's' : ''} from SMS'
+              : 'No new transactions found'),
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
@@ -410,17 +434,45 @@ class SettingsScreen extends ConsumerWidget {
 
     await HiveService.transactions.clear();
     await HiveService.budgets.clear();
-
-    ref.invalidate(transactionsProvider);
-    ref.invalidate(budgetsProvider);
-    ref.invalidate(homeStatsProvider);
-    ref.invalidate(allCategoriesSpendingProvider);
+    ref.read(transactionCacheProvider.notifier).bump();
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('All data cleared')),
       );
     }
+  }
+
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Logout?', style: Theme.of(context).textTheme.headlineSmall),
+        content: Text(
+          'Your data will remain on this device. You will be taken back to the welcome screen.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: context.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: context.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !context.mounted) return;
+    await HiveService.settings.put('isOnboarded', false);
+    await PasswordService.clearPassword();
+    await ref.read(appSettingsProvider.notifier).setAppLock(false);
+    if (context.mounted) context.go('/onboarding');
   }
 }
 
