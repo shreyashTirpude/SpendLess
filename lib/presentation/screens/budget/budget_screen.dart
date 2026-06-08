@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -323,6 +324,7 @@ class _BudgetCard extends StatelessWidget {
     final percent = hasLimit ? (spent / limit!).clamp(0.0, 1.0) : 0.0;
     final isOver = hasLimit && spent > limit!;
     final remaining = hasLimit ? (limit! - spent).clamp(0.0, double.infinity) : 0.0;
+    final ringColor = isOver ? AppColors.error : color;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -334,113 +336,159 @@ class _BudgetCard extends StatelessWidget {
           color: isOver ? AppColors.error.withValues(alpha: 0.4) : context.cardBorderColor,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(child: Text(icon, style: const TextStyle(fontSize: 18))),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(category, style: Theme.of(context).textTheme.labelLarge),
-                    if (!hasLimit)
-                      Text(
-                        'No limit set',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.textMuted),
-                      ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '₹${_fmt(spent)}',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: isOver ? AppColors.error : null,
-                    ),
-                  ),
-                  if (hasLimit)
-                    Text(
-                      'of ₹${_fmt(limit!)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.textMuted),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: onEdit,
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: context.surfaceColor,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: context.cardBorderColor),
-                  ),
-                  child: Icon(Icons.edit_rounded, size: 14, color: context.textMuted),
-                ),
-              ),
-            ],
-          ),
-          if (hasLimit) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: percent,
-                backgroundColor: context.cardBorderColor,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  isOver ? AppColors.error : color,
-                ),
-                minHeight: 6,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Circular ring with category icon
+          SizedBox(
+            width: 68,
+            height: 68,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Text(
-                  '${(percent * 100).toStringAsFixed(0)}% used',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isOver ? AppColors.error : context.textMuted,
+                CustomPaint(
+                  size: const Size(68, 68),
+                  painter: _RingPainter(
+                    progress: hasLimit ? percent : 0.0,
+                    color: ringColor,
+                    backgroundColor: context.cardBorderColor,
                   ),
                 ),
-                Text(
-                  isOver
-                      ? '₹${_fmt(spent - limit!)} over limit'
-                      : '₹${_fmt(remaining)} remaining',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isOver ? AppColors.error : AppColors.success,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
                   ),
+                  child: Center(child: Text(icon, style: const TextStyle(fontSize: 20))),
                 ),
               ],
             ),
-          ] else ...[
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: onEdit,
-              child: Text(
-                '+ Tap to set a limit',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.primary),
-              ),
+          ),
+          const SizedBox(width: 14),
+          // Details column
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(category, style: Theme.of(context).textTheme.labelLarge),
+                    ),
+                    GestureDetector(
+                      onTap: onEdit,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: context.surfaceColor,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: context.cardBorderColor),
+                        ),
+                        child: Icon(Icons.edit_rounded, size: 13, color: context.textMuted),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                if (hasLimit) ...[
+                  Text(
+                    '₹${_fmt(spent)} of ₹${_fmt(limit!)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Text(
+                        '${(percent * 100).toStringAsFixed(0)}% used',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isOver ? AppColors.error : context.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        isOver
+                            ? '₹${_fmt(spent - limit!)} over'
+                            : '₹${_fmt(remaining)} left',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isOver ? AppColors.error : AppColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Text(
+                    'No limit set',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.textMuted),
+                  ),
+                  const SizedBox(height: 5),
+                  GestureDetector(
+                    onTap: onEdit,
+                    child: Text(
+                      '+ Tap to set a limit',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );
   }
+}
+
+class _RingPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  final Color backgroundColor;
+
+  const _RingPainter({
+    required this.progress,
+    required this.color,
+    required this.backgroundColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width / 2) - 6;
+
+    final bgPaint = Paint()
+      ..color = backgroundColor
+      ..strokeWidth = 7
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, bgPaint);
+
+    if (progress > 0) {
+      final fgPaint = Paint()
+        ..color = color
+        ..strokeWidth = 7
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -pi / 2,
+        2 * pi * progress.clamp(0.0, 1.0),
+        false,
+        fgPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.progress != progress || old.color != color;
 }
 
 String _fmt(double amount) {

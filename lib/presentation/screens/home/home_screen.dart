@@ -119,6 +119,26 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
+            // Privacy trust strip
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 34,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                  children: const [
+                    _TrustChip(icon: '🔒', label: 'AES-256 Encrypted'),
+                    SizedBox(width: 8),
+                    _TrustChip(icon: '📵', label: 'No Cloud Upload'),
+                    SizedBox(width: 8),
+                    _TrustChip(icon: '🚫', label: 'No Raw SMS Stored'),
+                    SizedBox(width: 8),
+                    _TrustChip(icon: '📍', label: 'Local Device Only'),
+                  ],
+                ),
+              ),
+            ),
+
             // Balance Hero Card
             SliverToBoxAdapter(
               child: Padding(
@@ -174,6 +194,46 @@ class HomeScreen extends ConsumerWidget {
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Privacy Trust Chip ────────────────────────────────────────────────────────
+
+class _TrustChip extends StatelessWidget {
+  final String icon;
+  final String label;
+  const _TrustChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.primary.withValues(alpha: 0.08)
+            : AppColors.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 11)),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppColors.primary.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1224,6 +1284,7 @@ class _SpendingBreakdownCard extends StatelessWidget {
                           (e.value / totalSpent * 100).toStringAsFixed(0);
                       final color =
                           CategoryEngine.getCategoryFlutterColor(e.key);
+                      final catIcon = CategoryEngine.getCategoryIcon(e.key);
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 5),
                         child: Column(
@@ -1231,33 +1292,42 @@ class _SpendingBreakdownCard extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                      color: color, shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 6),
+                                Text(catIcon, style: const TextStyle(fontSize: 12)),
+                                const SizedBox(width: 5),
                                 Expanded(
                                   child: Text(
                                     e.key.split(' ').first,
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(fontWeight: FontWeight.w600),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Text(
-                                  '$pct%',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(
-                                          color: context.textMuted,
-                                          fontWeight: FontWeight.w700),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '$pct%',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: color,
+                                      ),
+                                    ),
+                                    Text(
+                                      '₹${_fmt(e.value)}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: context.textMuted,
+                                            fontSize: 9,
+                                          ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 3),
+                            const SizedBox(height: 4),
                             ClipRRect(
                               borderRadius: BorderRadius.circular(2),
                               child: TweenAnimationBuilder<double>(
@@ -1270,8 +1340,8 @@ class _SpendingBreakdownCard extends StatelessWidget {
                                 builder: (_, v, __) =>
                                     LinearProgressIndicator(
                                   value: v,
-                                  minHeight: 3,
-                                  backgroundColor: context.cardBorderColor,
+                                  minHeight: 4,
+                                  backgroundColor: color.withValues(alpha: 0.12),
                                   valueColor:
                                       AlwaysStoppedAnimation<Color>(color),
                                 ),
@@ -1357,79 +1427,69 @@ class _CategoryGrid extends StatelessWidget {
                   ),
                 ),
                 child: Container(
-                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: context.cardColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: context.cardBorderColor),
+                    border: Border(
+                      top: BorderSide(color: color, width: 3),
+                      left: BorderSide(color: context.cardBorderColor),
+                      right: BorderSide(color: context.cardBorderColor),
+                      bottom: BorderSide(color: context.cardBorderColor),
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Center(
-                              child: Text(icon,
-                                  style: const TextStyle(fontSize: 14)),
-                            ),
-                          ),
-                          Text(
-                            '${(share * 100).round()}%',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: color,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            cat.split(' ').first,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(color: context.textSecondary),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            '₹${_fmt(amount)}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13),
-                          ),
-                          const SizedBox(height: 4),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
-                            child: TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0.0, end: share.clamp(0.0, 1.0)),
-                              duration: const Duration(milliseconds: 700),
-                              builder: (_, v, __) => LinearProgressIndicator(
-                                value: v,
-                                minHeight: 3,
-                                backgroundColor: color.withValues(alpha: 0.15),
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(color),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(icon, style: const TextStyle(fontSize: 20)),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${(share * 100).round()}%',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: color,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              cat.split(' ').first,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(color: context.textSecondary, fontSize: 10),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '₹${_fmt(amount)}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: context.textPrimary,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

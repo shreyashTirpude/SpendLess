@@ -220,63 +220,7 @@ class SettingsScreen extends ConsumerWidget {
                 );
               },
             ),
-            _ActionTile(
-              icon: '🔒',
-              title: 'Privacy',
-              subtitle: 'All data stored locally on your device',
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (dialogCtx) => Theme(
-                    data: Theme.of(context),
-                    child: AlertDialog(
-                      backgroundColor: Theme.of(context).colorScheme.surface,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: Text('Privacy Policy',
-                          style: Theme.of(context).textTheme.headlineSmall),
-                      content: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _PrivacyPoint(
-                              icon: '🔐',
-                              title: 'AES-256 Encryption',
-                              body: 'All financial data is encrypted locally on your device.',
-                              context: context,
-                            ),
-                            _PrivacyPoint(
-                              icon: '📵',
-                              title: 'No Cloud Upload',
-                              body: 'Zero data is sent to any external server.',
-                              context: context,
-                            ),
-                            _PrivacyPoint(
-                              icon: '💬',
-                              title: 'SMS Access',
-                              body: 'SMS is read only to extract amounts and merchants. Raw messages are never stored.',
-                              context: context,
-                            ),
-                            _PrivacyPoint(
-                              icon: '🗑️',
-                              title: 'Your Control',
-                              body: 'Delete all data at any time from Settings → Data.',
-                              context: context,
-                            ),
-                          ],
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogCtx),
-                          child: const Text('Got it'),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+            const _PrivacyManifestCard(),
           ],
         ),
       ),
@@ -857,6 +801,169 @@ class _PrivacyPoint extends StatelessWidget {
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         )),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrivacyManifestCard extends StatelessWidget {
+  const _PrivacyManifestCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: context.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          // Header banner
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withValues(alpha: 0.12),
+                  AppColors.primary.withValues(alpha: 0.04),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
+              children: [
+                const Text('🛡️', style: TextStyle(fontSize: 26)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Privacy First — Zero Leakage',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'SpendLens never uploads your data. Everything stays on your device, encrypted.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Data manifest
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ManifestHeader(label: 'What IS stored', color: AppColors.success),
+                const SizedBox(height: 8),
+                const _ManifestRow(icon: '💰', text: 'Transaction amount (e.g. ₹250.00)'),
+                const _ManifestRow(icon: '🏪', text: 'Merchant name (e.g. Swiggy, Amazon)'),
+                const _ManifestRow(icon: '📅', text: 'Date and time of the transaction'),
+                const _ManifestRow(icon: '🏷️', text: 'Auto-detected category (Food, Travel…)'),
+                const SizedBox(height: 14),
+                _ManifestHeader(label: 'What is NOT stored', color: AppColors.error),
+                const SizedBox(height: 8),
+                const _ManifestRow(icon: '🚫', text: 'Raw SMS text or full message body', negative: true),
+                const _ManifestRow(icon: '🚫', text: 'Account numbers or card details', negative: true),
+                const _ManifestRow(icon: '🚫', text: 'Your name or personal contact info', negative: true),
+                const _ManifestRow(icon: '🚫', text: 'Any data uploaded to the internet', negative: true),
+              ],
+            ),
+          ),
+
+          // Encryption badge
+          Container(
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              children: [
+                const Text('🔐', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'AES-256 encryption via Android Keystore — same standard used by banks.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManifestHeader extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _ManifestHeader({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(width: 3, height: 14, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ManifestRow extends StatelessWidget {
+  final String icon;
+  final String text;
+  final bool negative;
+  const _ManifestRow({required this.icon, required this.text, this.negative = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 13)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: negative ? context.textSecondary : context.textSecondary,
+              ),
             ),
           ),
         ],

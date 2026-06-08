@@ -15,6 +15,8 @@ class LockScreen extends StatefulWidget {
 class _LockScreenState extends State<LockScreen>
     with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  final _focusNode = FocusNode();
   bool _obscure = true;
   bool _loading = false;
   String? _error;
@@ -31,11 +33,30 @@ class _LockScreenState extends State<LockScreen>
     _shakeAnim = Tween<double>(begin: 0, end: 8).animate(
       CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn),
     );
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (_focusNode.hasFocus) {
+      // Scroll to show the Unlock button after keyboard animation completes
+      Future.delayed(const Duration(milliseconds: 350), () {
+        if (_scrollCtrl.hasClients && mounted) {
+          _scrollCtrl.animateTo(
+            _scrollCtrl.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollCtrl.dispose();
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
     _shakeCtrl.dispose();
     super.dispose();
   }
@@ -241,79 +262,84 @@ class _LockScreenState extends State<LockScreen>
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0A0A0F) : AppColors.background,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('💸', style: TextStyle(fontSize: 72)),
-                const SizedBox(height: 12),
-                Text(
-                  'SpendLens',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Enter your password to continue',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: context.textMuted),
-                ),
-                const SizedBox(height: 40),
-                AnimatedBuilder(
-                  animation: _shakeAnim,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(_shakeAnim.value * ((_shakeCtrl.value < 0.5) ? 1 : -1), 0),
-                    child: child,
-                  ),
-                  child: TextField(
-                    controller: _controller,
-                    obscureText: _obscure,
-                    autofocus: true,
-                    onSubmitted: (_) => _unlock(),
-                    decoration: InputDecoration(
-                      hintText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        ),
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                      ),
-                      errorText: _error,
+        child: SingleChildScrollView(
+          controller: _scrollCtrl,
+          padding: EdgeInsets.fromLTRB(
+            32,
+            MediaQuery.of(context).size.height * 0.12,
+            32,
+            32,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text('💸', style: TextStyle(fontSize: 72)),
+              const SizedBox(height: 12),
+              Text(
+                'SpendLens',
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
                     ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Enter your password to continue',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: context.textMuted),
+              ),
+              const SizedBox(height: 48),
+              AnimatedBuilder(
+                animation: _shakeAnim,
+                builder: (_, child) => Transform.translate(
+                  offset: Offset(_shakeAnim.value * ((_shakeCtrl.value < 0.5) ? 1 : -1), 0),
+                  child: child,
+                ),
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  obscureText: _obscure,
+                  autofocus: true,
+                  onSubmitted: (_) => _unlock(),
+                  decoration: InputDecoration(
+                    hintText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      ),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                    errorText: _error,
                   ),
                 ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _unlock,
-                    child: _loading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Unlock', style: TextStyle(fontSize: 16)),
-                  ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _unlock,
+                  child: _loading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Unlock', style: TextStyle(fontSize: 16)),
                 ),
-                const SizedBox(height: 24),
-                TextButton(
-                  onPressed: _showForgotDialog,
-                  child: Text(
-                    'Forgot password?',
-                    style: TextStyle(color: AppColors.primary, fontSize: 13),
-                  ),
+              ),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: _showForgotDialog,
+                child: Text(
+                  'Forgot password?',
+                  style: TextStyle(color: AppColors.primary, fontSize: 13),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
