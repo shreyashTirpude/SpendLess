@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'help_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/security/security_service.dart';
 import '../../../data/local/hive_service.dart';
@@ -13,6 +14,9 @@ import '../../providers/theme_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/cache_provider.dart';
+import '../../providers/budget_provider.dart';
+import '../../providers/health_provider.dart';
+import '../../providers/insights_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -23,6 +27,7 @@ class SettingsScreen extends ConsumerWidget {
     final isDark = themeMode == ThemeMode.dark;
     final profile = ref.watch(userProfileProvider);
     final settings = ref.watch(appSettingsProvider);
+    final savingsGoal = ref.watch(savingsGoalProvider);
 
     return Scaffold(
       backgroundColor: context.bgColor,
@@ -77,6 +82,42 @@ class SettingsScreen extends ConsumerWidget {
                 keyboardType: TextInputType.phone,
                 onSave: (v) => ref.read(userProfileProvider.notifier).updatePhone(v),
               ),
+            ),
+            _ActionTile(
+              icon: '🎯',
+              title: 'Monthly Savings Goal',
+              subtitle: savingsGoal > 0
+                  ? '₹${savingsGoal.toStringAsFixed(0)} — shown as progress on Home screen'
+                  : 'Not set — tap to set how much you want to save',
+              onTap: () => _showEditDialog(
+                context,
+                ref,
+                title: 'Monthly Savings Goal',
+                hint: 'e.g. 5000',
+                initial: savingsGoal > 0 ? savingsGoal.toStringAsFixed(0) : '',
+                keyboardType: TextInputType.number,
+                onSave: (v) async {
+                  final amt = double.tryParse(v.trim()) ?? 0.0;
+                  await ref.read(savingsGoalProvider.notifier).setGoal(amt);
+                },
+              ),
+              trailing: savingsGoal > 0
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '₹${savingsGoal.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )
+                  : null,
             ),
             _ActionTile(
               icon: '📅',
@@ -169,6 +210,86 @@ class SettingsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
+            // ── Daily Limits ─────────────────────────────────────────────────
+            _SectionLabel(label: 'Daily Limits'),
+            _ActionTile(
+              icon: '📅',
+              title: 'Weekday Limit (Mon–Fri)',
+              subtitle: settings.weekdayDailyBudget > 0
+                  ? '₹${settings.weekdayDailyBudget.toStringAsFixed(0)} per day — notification fires if exceeded'
+                  : 'Not set — tap to configure',
+              onTap: () => _showEditDialog(
+                context,
+                ref,
+                title: 'Weekday Daily Limit',
+                hint: 'e.g. 800',
+                initial: settings.weekdayDailyBudget > 0
+                    ? settings.weekdayDailyBudget.toStringAsFixed(0)
+                    : '',
+                keyboardType: TextInputType.number,
+                onSave: (v) async {
+                  final amt = double.tryParse(v.trim()) ?? 0.0;
+                  await ref.read(appSettingsProvider.notifier).setWeekdayBudget(amt);
+                },
+              ),
+              trailing: settings.weekdayDailyBudget > 0
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '₹${settings.weekdayDailyBudget.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            _ActionTile(
+              icon: '🏖️',
+              title: 'Weekend Limit (Sat–Sun)',
+              subtitle: settings.weekendDailyBudget > 0
+                  ? '₹${settings.weekendDailyBudget.toStringAsFixed(0)} per day — notification fires if exceeded'
+                  : 'Not set — tap to configure',
+              onTap: () => _showEditDialog(
+                context,
+                ref,
+                title: 'Weekend Daily Limit',
+                hint: 'e.g. 1500',
+                initial: settings.weekendDailyBudget > 0
+                    ? settings.weekendDailyBudget.toStringAsFixed(0)
+                    : '',
+                keyboardType: TextInputType.number,
+                onSave: (v) async {
+                  final amt = double.tryParse(v.trim()) ?? 0.0;
+                  await ref.read(appSettingsProvider.notifier).setWeekendBudget(amt);
+                },
+              ),
+              trailing: settings.weekendDailyBudget > 0
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '₹${settings.weekendDailyBudget.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          color: Colors.orange,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 20),
+
             // ── Data ─────────────────────────────────────────────────────────
             _SectionLabel(label: 'Data'),
             _ActionTile(
@@ -189,6 +310,19 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'Permanently delete all transactions & budgets',
               onTap: () => _confirmClearData(context, ref),
               isDestructive: true,
+            ),
+            const SizedBox(height: 20),
+
+            // ── Help ──────────────────────────────────────────────────────────
+            _SectionLabel(label: 'Help'),
+            _ActionTile(
+              icon: '❓',
+              title: 'How to Use SpendLens',
+              subtitle: 'Simple guide — what every screen does, in plain language',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HelpScreen()),
+              ),
             ),
             const SizedBox(height: 20),
 
@@ -435,7 +569,14 @@ class SettingsScreen extends ConsumerWidget {
 
     await HiveService.transactions.clear();
     await HiveService.budgets.clear();
+    await HiveService.settings.clear();
     ref.read(transactionCacheProvider.notifier).bump();
+    ref.invalidate(budgetsProvider);
+    ref.invalidate(allCategoriesSpendingProvider);
+    ref.invalidate(healthScoreProvider);
+    ref.invalidate(insightCardsProvider);
+    ref.invalidate(topMerchantsProvider);
+    ref.invalidate(noSpendStreakProvider);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -528,6 +669,7 @@ class _PasswordSheetState extends State<_PasswordSheet> {
     }
 
     await PasswordService.setPassword(newPw);
+    if (!mounted) return;
     await widget.ref.read(appSettingsProvider.notifier).setAppLock(true);
 
     // Generate recovery key only on first-time setup (not when changing)
@@ -610,6 +752,7 @@ class _PasswordSheetState extends State<_PasswordSheet> {
       return;
     }
     await PasswordService.clearPassword();
+    if (!mounted) return;
     await widget.ref.read(appSettingsProvider.notifier).setAppLock(false);
     if (mounted) {
       Navigator.pop(context);
@@ -1019,7 +1162,7 @@ class _ManifestRow extends StatelessWidget {
             child: Text(
               text,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: negative ? context.textSecondary : context.textSecondary,
+                color: negative ? context.textMuted : context.textSecondary,
               ),
             ),
           ),

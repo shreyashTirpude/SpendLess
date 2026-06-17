@@ -43,7 +43,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     } else {
       ok = await ref.read(authProvider.notifier).loginWithEmail(email, password);
     }
-    setState(() => _loading = false);
+    if (mounted) setState(() => _loading = false);
     if (ok && mounted) {
       context.go('/home');
     } else if (mounted) {

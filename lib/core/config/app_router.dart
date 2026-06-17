@@ -11,6 +11,7 @@ import '../../presentation/screens/insights/insights_screen.dart';
 import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/home/main_shell.dart';
 import '../../presentation/screens/subscriptions/subscriptions_screen.dart';
+import '../../presentation/screens/legal/terms_screen.dart';
 
 // Slide-in from right + fade-in combo for full-screen pushes
 Page<void> _slidePage(GoRouterState state, Widget child) {
@@ -68,6 +69,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/lock',
       pageBuilder: (context, state) => _fadePage(state, const LockScreen()),
+    ),
+    GoRoute(
+      path: '/terms',
+      pageBuilder: (context, state) => _slidePage(state, const TermsScreen()),
     ),
     GoRoute(
       path: '/subscriptions',

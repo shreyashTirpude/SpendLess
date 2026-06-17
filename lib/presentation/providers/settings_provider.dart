@@ -53,6 +53,8 @@ typedef AppSettings = ({
   bool transactionAlerts,
   bool budgetAlerts,
   bool weeklyReports,
+  double weekdayDailyBudget,
+  double weekendDailyBudget,
 });
 
 class AppSettingsNotifier extends Notifier<AppSettings> {
@@ -64,6 +66,8 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
       transactionAlerts: s.get('transactionAlerts', defaultValue: true) as bool,
       budgetAlerts: s.get('budgetAlerts', defaultValue: true) as bool,
       weeklyReports: s.get('weeklyReports', defaultValue: true) as bool,
+      weekdayDailyBudget: (s.get('weekdayDailyBudget', defaultValue: 0.0) as num).toDouble(),
+      weekendDailyBudget: (s.get('weekendDailyBudget', defaultValue: 0.0) as num).toDouble(),
     );
   }
 
@@ -75,6 +79,16 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
 
   Future<void> setAppLock(bool enabled) async {
     await HiveService.settings.put('appLockEnabled', enabled);
+    state = _reload();
+  }
+
+  Future<void> setWeekdayBudget(double amount) async {
+    await HiveService.settings.put('weekdayDailyBudget', amount);
+    state = _reload();
+  }
+
+  Future<void> setWeekendBudget(double amount) async {
+    await HiveService.settings.put('weekendDailyBudget', amount);
     state = _reload();
   }
 
@@ -95,10 +109,29 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
       transactionAlerts: s.get('transactionAlerts', defaultValue: true) as bool,
       budgetAlerts: s.get('budgetAlerts', defaultValue: true) as bool,
       weeklyReports: s.get('weeklyReports', defaultValue: true) as bool,
+      weekdayDailyBudget: (s.get('weekdayDailyBudget', defaultValue: 0.0) as num).toDouble(),
+      weekendDailyBudget: (s.get('weekendDailyBudget', defaultValue: 0.0) as num).toDouble(),
     );
   }
 }
 
 final appSettingsProvider = NotifierProvider<AppSettingsNotifier, AppSettings>(
   AppSettingsNotifier.new,
+);
+
+// ─── Savings Goal ─────────────────────────────────────────────────────────────
+
+class SavingsGoalNotifier extends Notifier<double> {
+  @override
+  double build() =>
+      (HiveService.settings.get('monthlySavingsGoal', defaultValue: 0.0) as num).toDouble();
+
+  Future<void> setGoal(double amount) async {
+    await HiveService.settings.put('monthlySavingsGoal', amount);
+    state = amount;
+  }
+}
+
+final savingsGoalProvider = NotifierProvider<SavingsGoalNotifier, double>(
+  SavingsGoalNotifier.new,
 );

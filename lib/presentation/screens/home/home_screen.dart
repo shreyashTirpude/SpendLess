@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/health_provider.dart';
 import '../../providers/budget_provider.dart';
+import '../../providers/settings_provider.dart';
+import '../../providers/recurring_provider.dart';
+import '../../providers/insights_provider.dart';
+import '../../../core/utils/recurring_detector.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/category_engine.dart';
 import '../../../domain/models/transaction.dart';
@@ -13,14 +18,12 @@ import 'category_detail_screen.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
-  void _showNotifications(BuildContext context, WidgetRef ref) {
-    final budgetData = ref.read(allCategoriesSpendingProvider).valueOrNull ?? [];
-    final recentTxns = ref.read(transactionsProvider).valueOrNull ?? [];
+  void _showNotifications(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _NotificationsSheet(budgetData: budgetData, recentTxns: recentTxns),
+      builder: (_) => const _NotificationsSheet(),
     );
   }
 
@@ -56,11 +59,92 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  void _showSetGoalDialog(BuildContext context, WidgetRef ref, double current) {
+    final ctrl = TextEditingController(
+        text: current > 0 ? current.toStringAsFixed(0) : '');
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (innerCtx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(innerCtx).viewInsets.bottom),
+        child: Container(
+          decoration: BoxDecoration(
+            color: context.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: context.cardBorderColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text('Set Savings Goal',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Text('How much do you want to save this month?',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.textMuted)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ctrl,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                decoration: InputDecoration(
+                  prefixText: '₹ ',
+                  hintText: 'e.g. 5000',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    final amt = double.tryParse(ctrl.text.trim()) ?? 0.0;
+                    ref.read(savingsGoalProvider.notifier).setGoal(amt);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Save Goal'),
+                ),
+              ),
+              if (current > 0) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () {
+                      ref.read(savingsGoalProvider.notifier).setGoal(0.0);
+                      Navigator.pop(context);
+                    },
+                    child: Text('Remove Goal',
+                        style: TextStyle(color: context.textMuted)),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(homeStatsProvider);
     final healthAsync = ref.watch(healthScoreProvider);
     final txnsAsync = ref.watch(transactionsProvider);
+    final savingsGoal = ref.watch(savingsGoalProvider);
+    final upcomingBills = ref.watch(upcomingBillsProvider);
+    final streakAsync = ref.watch(noSpendStreakProvider);
     final hour = DateTime.now().hour;
     final greeting =
         hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
@@ -68,7 +152,50 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: context.bgColor,
-      body: statsAsync.when(
+      body: Stack(
+        children: [
+          // Ambient glow — top-left purple, bottom-right blue
+          if (context.isDark) ...[
+            Positioned(
+              top: -120,
+              left: -80,
+              child: IgnorePointer(
+                child: Container(
+                  width: 360,
+                  height: 360,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.gradientStart.withValues(alpha: 0.18),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 80,
+              right: -100,
+              child: IgnorePointer(
+                child: Container(
+                  width: 280,
+                  height: 280,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.gradientEnd.withValues(alpha: 0.12),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => const Center(child: Text('Error loading data')),
         data: (stats) => CustomScrollView(
@@ -101,7 +228,7 @@ class HomeScreen extends ConsumerWidget {
                       ],
                     ),
                     GestureDetector(
-                      onTap: () => _showNotifications(context, ref),
+                      onTap: () => _showNotifications(context),
                       child: Container(
                         width: 40,
                         height: 40,
@@ -157,6 +284,23 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
+            // Achievement / Streak Banner
+            SliverToBoxAdapter(
+              child: streakAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (streak) => statsAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (stats) => _AchievementBanner(
+                    streak: streak,
+                    totalSpent: stats.totalSpent,
+                    totalIncome: stats.totalIncome,
+                  ),
+                ),
+              ),
+            ),
+
             // Financial Health Score
             SliverToBoxAdapter(
               child: healthAsync.when(
@@ -165,6 +309,25 @@ class HomeScreen extends ConsumerWidget {
                 data: (health) => _HealthScoreCard(data: health),
               ),
             ),
+
+            // Savings Goal
+            SliverToBoxAdapter(
+              child: statsAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (stats) => _SavingsGoalCard(
+                  goal: savingsGoal,
+                  currentSavings: (stats.totalIncome - stats.totalSpent).clamp(0.0, double.infinity),
+                  onSetGoal: () => _showSetGoalDialog(context, ref, savingsGoal),
+                ),
+              ),
+            ),
+
+            // Upcoming Bills
+            if (upcomingBills.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _UpcomingBillsCard(bills: upcomingBills),
+              ),
 
             // Spending Breakdown
             if (stats.categoryTotals.isNotEmpty)
@@ -195,7 +358,9 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 }
 
@@ -241,13 +406,14 @@ class _TrustChip extends StatelessWidget {
 
 // ── Notifications Bottom Sheet ────────────────────────────────────────────────
 
-class _NotificationsSheet extends StatelessWidget {
-  final List<({String category, double spent, double? limit})> budgetData;
-  final List<Transaction> recentTxns;
-  const _NotificationsSheet({required this.budgetData, required this.recentTxns});
+class _NotificationsSheet extends ConsumerWidget {
+  const _NotificationsSheet();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final budgetData = ref.watch(allCategoriesSpendingProvider).valueOrNull ?? [];
+    final recentTxns = ref.watch(transactionsProvider).valueOrNull ?? [];
+
     final overBudget = budgetData
         .where((b) => b.limit != null && b.spent > b.limit!)
         .toList();
@@ -342,7 +508,6 @@ class _NotificationsSheet extends StatelessWidget {
                         body:
                             'Spent ₹${_fmt(b.spent)} of ₹${_fmt(b.limit!)} limit (${((b.spent / b.limit!) * 100).round()}%)',
                         isAlert: true,
-                        context: context,
                       )),
 
                   // Near-budget alerts
@@ -352,7 +517,6 @@ class _NotificationsSheet extends StatelessWidget {
                         body:
                             'Spent ₹${_fmt(b.spent)} of ₹${_fmt(b.limit!)} (${((b.spent / b.limit!) * 100).round()}%)',
                         isAlert: true,
-                        context: context,
                       )),
 
                   // Today's activity
@@ -371,19 +535,17 @@ class _NotificationsSheet extends StatelessWidget {
                           icon: CategoryEngine.getCategoryIcon(t.category),
                           title: t.merchant,
                           body:
-                              '${t.isCredit ? '+' : '-'}₹${_fmt(t.amount)} · ${t.category}',
+                              '${t.isCredit ? 'Received' : 'Spent'} ₹${_fmt(t.amount)} · ${t.category}',
                           isAlert: false,
-                          context: context,
                         )),
                   ],
 
                   // Tips
-                  _NotifCard(
+                  const _NotifCard(
                     icon: '💡',
                     title: 'Tip: Long-press any transaction to recategorize',
                     body: 'Accurate categories improve your insights.',
                     isAlert: false,
-                    context: context,
                   ),
                   const SizedBox(height: 20),
                 ],
@@ -399,17 +561,15 @@ class _NotificationsSheet extends StatelessWidget {
 class _NotifCard extends StatelessWidget {
   final String icon, title, body;
   final bool isAlert;
-  final BuildContext context;
   const _NotifCard({
     required this.icon,
     required this.title,
     required this.body,
     required this.isAlert,
-    required this.context,
   });
 
   @override
-  Widget build(BuildContext ctx) {
+  Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -683,13 +843,26 @@ class _TransactionDetailSheet extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  Text(
-                                    '${t.isCredit ? '+' : '-'}₹${_fmt(t.amount)}',
-                                    style: TextStyle(
-                                      color: t.isCredit ? AppColors.success : AppColors.error,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                    ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        t.isCredit
+                                            ? Icons.arrow_downward_rounded
+                                            : Icons.arrow_upward_rounded,
+                                        size: 10,
+                                        color: t.isCredit ? AppColors.success : AppColors.error,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        '₹${_fmt(t.amount)}',
+                                        style: TextStyle(
+                                          color: t.isCredit ? AppColors.success : AppColors.error,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -738,11 +911,18 @@ class _BalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final net = totalIncome - totalSpent;
+    final incomeTracked = totalIncome > 0;
+    final hasSavings = incomeTracked && net > 0;
+    final isOverIncome = incomeTracked && net < 0;
     final spentRatio =
-        totalIncome > 0 ? (totalSpent / totalIncome).clamp(0.0, 1.0) : 0.0;
-    final dayOfMonth = DateTime.now().day;
-    final projectedMonthly =
-        dayOfMonth > 3 ? (totalSpent / dayOfMonth) * 30 : 0.0;
+        incomeTracked ? (totalSpent / totalIncome).clamp(0.0, 1.0) : 0.0;
+    final now = DateTime.now();
+    final dayOfMonth = now.day;
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    // Require at least 5 days of data to avoid wild early-month projections
+    final projectedMonthly = dayOfMonth >= 5 && totalSpent > 0
+        ? (totalSpent / dayOfMonth) * daysInMonth
+        : 0.0;
     final arcColor = spentRatio > 0.9
         ? Colors.redAccent.shade100
         : spentRatio > 0.7
@@ -753,16 +933,28 @@ class _BalanceCard extends StatelessWidget {
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF4338CA)],
+          colors: [
+            Color(0xFF7C3AED),
+            Color(0xFF6366F1),
+            Color(0xFF3B82F6),
+          ],
+          stops: [0.0, 0.55, 1.0],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.35),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            color: AppColors.gradientStart.withValues(alpha: 0.45),
+            blurRadius: 32,
+            spreadRadius: -4,
+            offset: const Offset(0, 14),
+          ),
+          BoxShadow(
+            color: AppColors.gradientEnd.withValues(alpha: 0.15),
+            blurRadius: 60,
+            spreadRadius: 0,
+            offset: const Offset(0, 24),
           ),
         ],
       ),
@@ -777,7 +969,7 @@ class _BalanceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Net Balance',
+                      'Spent This Month',
                       style: TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
@@ -785,11 +977,11 @@ class _BalanceCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: net.abs()),
+                      tween: Tween(begin: 0.0, end: totalSpent),
                       duration: const Duration(milliseconds: 900),
                       curve: Curves.easeOutCubic,
                       builder: (_, v, __) => Text(
-                        '${net < 0 ? '-' : ''}₹${_fmt(v)}',
+                        '₹${_fmt(v)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 34,
@@ -799,19 +991,42 @@ class _BalanceCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (projectedMonthly > 0) ...[
+                    if (hasSavings) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.greenAccent.withValues(alpha: 0.35)),
+                        ),
+                        child: Text(
+                          '💚 Saved ₹${_fmt(net)} this month',
+                          style: TextStyle(
+                              color: Colors.greenAccent.shade200,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ] else if (isOverIncome) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '⚠️ Spent ₹${_fmt(net.abs())} more than income this month',
+                        style: TextStyle(color: Colors.orange.shade200, fontSize: 11),
+                      ),
+                    ] else if (projectedMonthly > 0) ...[
                       const SizedBox(height: 4),
                       Text(
                         'On pace for ₹${_fmt(projectedMonthly)} this month',
-                        style: const TextStyle(
-                            color: Colors.white60, fontSize: 11),
+                        style: const TextStyle(color: Colors.white60, fontSize: 11),
                       ),
                     ],
                   ],
                 ),
               ),
-              // Spending arc ring
-              if (totalIncome > 0)
+              // Spending arc ring — shown whenever any income is tracked
+              if (incomeTracked)
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: spentRatio),
                   duration: const Duration(milliseconds: 1100),
@@ -858,7 +1073,7 @@ class _BalanceCard extends StatelessWidget {
                 ),
             ],
           ),
-          if (safeToSpend > 0 || daysRemaining > 0) ...[
+          if (incomeTracked && safeToSpend > 0) ...[
             const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -925,33 +1140,44 @@ class _BalanceCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: onIncomeTap,
-                  child: _BalancePill(
-                    label: 'Income',
-                    icon: Icons.arrow_downward_rounded,
-                    color: Colors.greenAccent.shade200,
-                    value: totalIncome,
+          if (incomeTracked)
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: onIncomeTap,
+                    child: _BalancePill(
+                      label: 'Income',
+                      icon: Icons.arrow_downward_rounded,
+                      color: Colors.greenAccent.shade200,
+                      value: totalIncome,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: onSpentTap,
-                  child: _BalancePill(
-                    label: 'Spent',
-                    icon: Icons.arrow_upward_rounded,
-                    color: Colors.redAccent.shade100,
-                    value: totalSpent,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: onSpentTap,
+                    child: _BalancePill(
+                      label: 'Spent',
+                      icon: Icons.arrow_upward_rounded,
+                      color: Colors.redAccent.shade100,
+                      value: totalSpent,
+                    ),
                   ),
                 ),
+              ],
+            )
+          else
+            GestureDetector(
+              onTap: onSpentTap,
+              child: _BalancePill(
+                label: 'Expenses This Month',
+                icon: Icons.arrow_upward_rounded,
+                color: Colors.redAccent.shade100,
+                value: totalSpent,
               ),
-            ],
-          ),
+            ),
         ],
       ),
     );
@@ -1029,122 +1255,219 @@ class _HealthScoreCard extends StatelessWidget {
   const _HealthScoreCard({required this.data});
 
   Color get _scoreColor {
-    if (data.score >= 80) return AppColors.success;
-    if (data.score >= 65) return const Color(0xFF3ABEFF);
-    if (data.score >= 45) return AppColors.warning;
+    if (data.grade == 'No Data') return Colors.grey;
+    if (data.score >= 85) return AppColors.success;
+    if (data.score >= 70) return const Color(0xFF3ABEFF);
+    if (data.score >= 55) return AppColors.warning;
+    if (data.score >= 40) return Colors.orange;
     return AppColors.error;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-      child: Container(
-        padding: const EdgeInsets.all(20),
+  String get _gradeEmoji {
+    if (data.grade == 'No Data') return '📊';
+    if (data.score >= 85) return '🏆';
+    if (data.score >= 70) return '👍';
+    if (data.score >= 55) return '🙂';
+    if (data.score >= 40) return '⚠️';
+    return '🚨';
+  }
+
+  void _showExplainer(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
         decoration: BoxDecoration(
           color: context.cardColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: context.cardBorderColor),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: data.score / 100),
-              duration: const Duration(milliseconds: 1200),
-              curve: Curves.easeOutCubic,
-              builder: (_, v, __) => SizedBox(
-                width: 80,
-                height: 80,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox.expand(
-                      child: CircularProgressIndicator(
-                        value: v,
-                        strokeWidth: 7,
-                        backgroundColor: context.cardBorderColor,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(_scoreColor),
-                        strokeCap: StrokeCap.round,
-                      ),
-                    ),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '${(v * 100).round()}',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: _scoreColor,
-                            height: 1,
-                          ),
-                        ),
-                        Text(
-                          '/100',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: context.textMuted,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: context.cardBorderColor,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            const SizedBox(width: 18),
-            Expanded(
+            const SizedBox(height: 20),
+            Text('What is Financial Health?',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text(
+              'It\'s your money report card for this month — a score out of 100 that shows '
+              'how well you are managing your finances. Like a school report card, higher is better.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: context.textMuted, height: 1.5),
+            ),
+            const SizedBox(height: 18),
+            _ScoreRow(emoji: '🏆', range: '85–100', label: 'Excellent', sub: 'You are saving well and staying within limits', color: AppColors.success),
+            _ScoreRow(emoji: '👍', range: '70–84', label: 'Good', sub: 'You are on the right track', color: const Color(0xFF3ABEFF)),
+            _ScoreRow(emoji: '🙂', range: '55–69', label: 'Fair', sub: 'Some areas need attention', color: AppColors.warning),
+            _ScoreRow(emoji: '⚠️', range: '40–54', label: 'Needs Work', sub: 'Set budgets to gain control', color: Colors.orange),
+            _ScoreRow(emoji: '🚨', range: '0–39', label: 'Critical', sub: 'Spending is more than income', color: AppColors.error),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Financial Health',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: context.textMuted),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    data.grade,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: _scoreColor,
-                      height: 1.2,
-                    ),
-                  ),
+                  Text('How to improve your score:', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
-                  Text(
-                    data.tip,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.textSecondary,
-                          height: 1.4,
-                        ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 10),
-                  _MiniBar(
-                    label: 'Savings',
-                    value: data.savingsRate,
-                    color: AppColors.success,
-                    context: context,
-                  ),
-                  const SizedBox(height: 4),
-                  _MiniBar(
-                    label: 'Budget',
-                    value: data.budgetAdherence,
-                    color: AppColors.primary,
-                    context: context,
-                  ),
+                  Text('• Set category budgets and stay within them (+30 pts)\n• Make sure salary/income SMS is detected (+20 pts)\n• Reduce spending in your biggest category (+50 pts)',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.textMuted, height: 1.6)),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final savingsPct = (data.savingsRate * 100).round();
+    final budgetPct = (data.budgetAdherence * 100).round();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      child: GestureDetector(
+        onTap: () => _showExplainer(context),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: context.cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: context.cardBorderColor),
+          ),
+          child: Row(
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: data.score / 100),
+                duration: const Duration(milliseconds: 1200),
+                curve: Curves.easeOutCubic,
+                builder: (_, v, __) => SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox.expand(
+                        child: CircularProgressIndicator(
+                          value: v,
+                          strokeWidth: 7,
+                          backgroundColor: context.cardBorderColor,
+                          valueColor: AlwaysStoppedAnimation<Color>(_scoreColor),
+                          strokeCap: StrokeCap.round,
+                        ),
+                      ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${(v * 100).round()}',
+                            style: TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.w800,
+                              color: _scoreColor, height: 1,
+                            ),
+                          ),
+                          Text('/100',
+                            style: TextStyle(fontSize: 9, color: context.textMuted, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text('Financial Health',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.textMuted),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.info_outline_rounded, size: 13, color: context.textMuted),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$_gradeEmoji ${data.grade}',
+                      style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w800,
+                        color: _scoreColor, height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      data.tip,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.textSecondary, height: 1.4,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 10),
+                    _MiniBar(label: 'Savings $savingsPct%', value: data.savingsRate, color: AppColors.success),
+                    const SizedBox(height: 4),
+                    _MiniBar(label: 'Budget $budgetPct%', value: data.budgetAdherence, color: AppColors.primary),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoreRow extends StatelessWidget {
+  final String emoji;
+  final String range;
+  final String label;
+  final String sub;
+  final Color color;
+  const _ScoreRow({required this.emoji, required this.range, required this.label, required this.sub, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13)),
+                    const SizedBox(width: 6),
+                    Text(range, style: TextStyle(fontSize: 11, color: context.textMuted)),
+                  ],
+                ),
+                Text(sub, style: TextStyle(fontSize: 11, color: context.textMuted)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1154,15 +1477,10 @@ class _MiniBar extends StatelessWidget {
   final String label;
   final double value;
   final Color color;
-  final BuildContext context;
-  const _MiniBar(
-      {required this.label,
-      required this.value,
-      required this.color,
-      required this.context});
+  const _MiniBar({required this.label, required this.value, required this.color});
 
   @override
-  Widget build(BuildContext ctx) {
+  Widget build(BuildContext context) {
     return Row(
       children: [
         SizedBox(
@@ -1509,8 +1827,9 @@ class _TopPayeesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (payees.isEmpty) return const SizedBox.shrink();
     final maxAmount =
-        payees.map((p) => p.amount).reduce((a, b) => a > b ? a : b);
+        payees.map((p) => p.amount).fold(0.0, (m, a) => a > m ? a : m);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
@@ -1649,7 +1968,7 @@ class _RecentTransactionsCard extends StatelessWidget {
               Text('Recent Transactions',
                   style: Theme.of(context).textTheme.titleLarge),
               TextButton(
-                onPressed: () {},
+                onPressed: () => context.go('/transactions'),
                 child: const Text('See all',
                     style: TextStyle(color: AppColors.primary, fontSize: 12)),
               ),
@@ -1722,16 +2041,31 @@ class _RecentTransactionsCard extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                '${t.isCredit ? '+' : '-'}₹${_fmt(t.amount)}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(
-                                      color: t.isCredit
-                                          ? AppColors.success
-                                          : AppColors.error,
-                                    ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    t.isCredit
+                                        ? Icons.arrow_downward_rounded
+                                        : Icons.arrow_upward_rounded,
+                                    size: 10,
+                                    color: t.isCredit
+                                        ? AppColors.success
+                                        : AppColors.error,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '₹${_fmt(t.amount)}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                          color: t.isCredit
+                                              ? AppColors.success
+                                              : AppColors.error,
+                                        ),
+                                  ),
+                                ],
                               ),
                               Text(
                                 DateFormat('d MMM').format(t.transactionDate),
@@ -1763,8 +2097,364 @@ class _RecentTransactionsCard extends StatelessWidget {
   }
 }
 
+// ── Achievement Banner ────────────────────────────────────────────────────────
+
+class _AchievementBanner extends StatelessWidget {
+  final int streak;
+  final double totalSpent;
+  final double totalIncome;
+
+  const _AchievementBanner({
+    required this.streak,
+    required this.totalSpent,
+    required this.totalIncome,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final badges = <({String icon, String label, Color color})>[];
+
+    if (streak >= 7) {
+      badges.add((icon: '🔥', label: '$streak-day streak', color: Colors.orange));
+    } else if (streak >= 3) {
+      badges.add((icon: '✨', label: '$streak-day streak', color: Colors.amber));
+    } else if (streak >= 1) {
+      badges.add((icon: '⚡', label: '$streak days clean', color: Colors.yellow));
+    }
+
+    if (totalSpent == 0) {
+      badges.add((icon: '🎯', label: 'No spend yet', color: AppColors.primary));
+    } else if (totalIncome > 0 && totalSpent < totalIncome * 0.7) {
+      badges.add((icon: '💚', label: 'Under budget!', color: AppColors.success));
+      if (totalSpent < totalIncome * 0.5) {
+        badges.add((icon: '🏆', label: 'Saving 50%+', color: AppColors.success));
+      }
+    }
+
+    if (badges.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: SizedBox(
+        height: 38,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: badges.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final b = badges[i];
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: b.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: b.color.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(b.icon, style: const TextStyle(fontSize: 13)),
+                  const SizedBox(width: 5),
+                  Text(
+                    b.label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: b.color,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 String _fmt(double amount) {
-  if (amount >= 100000) return '${(amount / 100000).toStringAsFixed(1)}L';
-  if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
-  return amount.toStringAsFixed(0);
+  final v = amount.abs();
+  if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
+  if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
+  return v.toStringAsFixed(0);
+}
+
+// ── Savings Goal Card ──────────────────────────────────────────────────────────
+
+class _SavingsGoalCard extends StatelessWidget {
+  final double goal;
+  final double currentSavings;
+  final VoidCallback onSetGoal;
+
+  const _SavingsGoalCard({
+    required this.goal,
+    required this.currentSavings,
+    required this.onSetGoal,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasGoal = goal > 0;
+    final progress = hasGoal ? (currentSavings / goal).clamp(0.0, 1.0) : 0.0;
+    final pct = (progress * 100).round();
+    final goalColor = progress >= 1.0
+        ? AppColors.success
+        : progress >= 0.6
+            ? const Color(0xFF3ABEFF)
+            : AppColors.warning;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: GestureDetector(
+        onTap: onSetGoal,
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: context.cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: context.cardBorderColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('🎯', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Savings Goal',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Text(
+                    hasGoal ? 'Edit' : 'Set Goal',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              if (!hasGoal) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Set a monthly savings target to track your progress here.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: context.textMuted, height: 1.4),
+                ),
+              ] else ...[
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Saved so far',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: context.textMuted)),
+                        Text(
+                          '₹${_fmt(currentSavings)}',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: goalColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('Goal',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: context.textMuted)),
+                        Text(
+                          '₹${_fmt(goal)}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: progress),
+                    duration: const Duration(milliseconds: 1000),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, v, __) => LinearProgressIndicator(
+                      value: v,
+                      minHeight: 8,
+                      backgroundColor: context.cardBorderColor,
+                      valueColor: AlwaysStoppedAnimation<Color>(goalColor),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  progress >= 1.0
+                      ? '🎉 Goal achieved! Great work!'
+                      : '$pct% of your goal — ₹${_fmt(goal - currentSavings)} more to go',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: context.textMuted),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Upcoming Bills Card ────────────────────────────────────────────────────────
+
+class _UpcomingBillsCard extends StatelessWidget {
+  final List<RecurringItem> bills;
+  const _UpcomingBillsCard({required this.bills});
+
+  String _typeLabel(RecurringType type) {
+    switch (type) {
+      case RecurringType.subscription: return 'Subscription';
+      case RecurringType.emi: return 'EMI';
+      case RecurringType.utility: return 'Utility';
+      default: return 'Recurring';
+    }
+  }
+
+  String _typeEmoji(RecurringType type) {
+    switch (type) {
+      case RecurringType.subscription: return '📱';
+      case RecurringType.emi: return '🏦';
+      case RecurringType.utility: return '💡';
+      default: return '🔄';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: context.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: context.cardBorderColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('⏰', style: TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                Text(
+                  'Bills Due Soon',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Next 7 days',
+                    style: const TextStyle(
+                        color: Colors.orange,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...bills.take(4).map((bill) {
+              // nextExpected is always in the future here (upcomingIn() filters past dates)
+              final daysLeft = bill.nextExpected != null
+                  ? bill.nextExpected!.difference(DateTime.now()).inDays.clamp(0, 999)
+                  : 0;
+              final urgency = daysLeft <= 1
+                  ? Colors.red
+                  : daysLeft <= 3
+                      ? Colors.orange
+                      : Colors.blue;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Text(_typeEmoji(bill.type),
+                        style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(bill.canonicalMerchant,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600)),
+                          Text(_typeLabel(bill.type),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: context.textMuted)),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '₹${_fmt(bill.avgAmount)}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          daysLeft <= 0
+                              ? 'Due today!'
+                              : 'in $daysLeft day${daysLeft == 1 ? '' : 's'}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: urgency,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
 }

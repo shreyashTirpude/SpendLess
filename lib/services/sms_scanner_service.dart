@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import 'package:telephony/telephony.dart';
 import '../core/utils/sms_parser.dart';
 import '../data/local/hive_service.dart';
+import 'notification_service.dart';
 
 class SmsScannerService {
   static final _telephony = Telephony.instance;
@@ -55,7 +56,7 @@ class SmsScannerService {
       if (alreadyExists) continue;
 
       final tx = SmsParser.toTransaction(parsed);
-      await box.add(tx);
+      await box.put(tx.id, tx);
       added++;
     }
 
@@ -85,9 +86,54 @@ class SmsScannerService {
     if (body == null) return;
     final parsed = SmsParser.parse(body, DateTime.now());
     if (parsed == null) return;
+
+    // Deduplicate by raw SMS hash — same check as scanInbox() to prevent
+    // double entries when a bank SMS arrives while a rescan is in progress.
+    final alreadyExists = HiveService.transactions.values.any(
+      (t) => t.rawSmsHash == parsed.rawSmsHash,
+    );
+    if (alreadyExists) return;
+
     final tx = SmsParser.toTransaction(parsed);
-    await HiveService.transactions.add(tx);
+    await HiveService.transactions.put(tx.id, tx);
     debugPrint('[SmsScannerService] New transaction: ${tx.merchant} ₹${tx.amount}');
+
+    await _checkDailyBudget();
+  }
+
+  static Future<void> _checkDailyBudget() async {
+    try {
+      final settings = HiveService.settings;
+      final now = DateTime.now();
+      final isWeekend =
+          now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
+      final limit = isWeekend
+          ? (settings.get('weekendDailyBudget', defaultValue: 0.0) as num).toDouble()
+          : (settings.get('weekdayDailyBudget', defaultValue: 0.0) as num).toDouble();
+      if (limit <= 0) return;
+
+      final today = DateTime(now.year, now.month, now.day);
+      final todaySpend = HiveService.transactions.values
+          .where((t) =>
+              !t.isCredit &&
+              !t.isIgnored &&
+              t.transactionDate.year == today.year &&
+              t.transactionDate.month == today.month &&
+              t.transactionDate.day == today.day)
+          .fold(0.0, (sum, t) => sum + t.amount);
+
+      if (todaySpend > limit) {
+        final notif = NotificationService();
+        await notif.initialize();
+        await notif.showDailyBudgetAlert(
+          isWeekend: isWeekend,
+          spent: todaySpend,
+          limit: limit,
+        );
+      }
+    } catch (e) {
+      debugPrint('[SmsScannerService] _checkDailyBudget error: $e');
+    }
   }
 }
 

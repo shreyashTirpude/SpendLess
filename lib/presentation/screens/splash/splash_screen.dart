@@ -23,18 +23,27 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
     try {
-      // Primary check: local onboarding flag (works offline)
-      final isOnboarded = HiveService.settings.get('isOnboarded', defaultValue: false) as bool;
+      // Gate 1: Terms & Conditions must be accepted before anything else
+      final termsAccepted =
+          HiveService.settings.get('termsAccepted', defaultValue: false) as bool;
+      if (!termsAccepted) {
+        context.go('/terms');
+        return;
+      }
+
+      // Gate 2: Onboarding
+      final isOnboarded =
+          HiveService.settings.get('isOnboarded', defaultValue: false) as bool;
       if (!isOnboarded) {
-        // Also check Firebase as fallback
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
           context.go('/onboarding');
           return;
         }
-        // Firebase user exists but local flag not set — fix it and proceed
         await HiveService.settings.put('isOnboarded', true);
       }
+
+      // Gate 3: App lock
       final locked = await PasswordService.hasPassword();
       context.go(locked ? '/lock' : '/home');
     } catch (_) {

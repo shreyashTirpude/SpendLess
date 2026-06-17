@@ -15,8 +15,21 @@ final healthScoreProvider = FutureProvider<HealthData>((ref) async {
   final stats = await ref.watch(homeStatsProvider.future);
   final categoryData = await ref.watch(allCategoriesSpendingProvider.future);
 
+  // Early return for new/empty users — no data means no score yet
+  if (stats.totalSpent == 0 && stats.totalIncome == 0) {
+    return (
+      score: 0,
+      grade: 'No Data',
+      tip: 'SpendLens will score your finances once transactions are detected.',
+      savingsRate: 0.0,
+      budgetAdherence: 0.0,
+      spentVsIncomeRatio: 0.0,
+    );
+  }
+
   // Component 1: Savings rate 0–50 pts
-  double savingsRate = 0.5; // neutral when no income
+  // 0.0 when no income (honest — we don't know savings rate without income data)
+  double savingsRate = 0.0;
   if (stats.totalIncome > 0) {
     savingsRate =
         ((stats.totalIncome - stats.totalSpent) / stats.totalIncome)
@@ -25,7 +38,8 @@ final healthScoreProvider = FutureProvider<HealthData>((ref) async {
   final savingsScore = savingsRate * 50;
 
   // Component 2: Budget adherence 0–30 pts
-  double budgetAdherence = 1.0;
+  // 0.5 (neutral) when no budgets are set — not 1.0 which would falsely inflate the score
+  double budgetAdherence = 0.5;
   int totalWithBudget = 0;
   int withinBudget = 0;
   for (final row in categoryData) {
@@ -40,7 +54,7 @@ final healthScoreProvider = FutureProvider<HealthData>((ref) async {
   final budgetScore = budgetAdherence * 30;
 
   // Component 3: Income tracked bonus 0–20 pts
-  final incomeScore = stats.totalIncome > 0 ? 20.0 : 5.0;
+  final incomeScore = stats.totalIncome > 0 ? 20.0 : 0.0;
 
   final score =
       (savingsScore + budgetScore + incomeScore).round().clamp(0, 100);

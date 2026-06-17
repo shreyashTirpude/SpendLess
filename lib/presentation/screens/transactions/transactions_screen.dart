@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +34,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   List<Transaction> _applyFilters(List<Transaction> txns) {
     return txns.where((t) {
+      if (t.isIgnored) return false;
       final q = _searchQuery.toLowerCase();
       if (q.isNotEmpty &&
           !t.merchant.toLowerCase().contains(q) &&
@@ -78,54 +80,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   Future<bool> _passImpulseCheck() async {
     final count = _todayTransactionCount();
     if (count < 3) return true;
-    // Show 5-second countdown dialog
-    int remaining = 5;
-    bool approved = false;
-    await showDialog<void>(
+    final approved = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) {
-          Future.delayed(const Duration(seconds: 1), () {
-            if (!ctx.mounted) return;
-            if (remaining > 1) {
-              setD(() => remaining--);
-            } else {
-              Navigator.pop(ctx);
-              approved = true;
-            }
-          });
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text('Spending Check'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'You\'ve already logged $count transactions today.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Take a moment — continuing in',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.textMuted),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$remaining',
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+      builder: (ctx) => _ImpulseCountdownDialog(txnCount: count),
     );
-    return approved;
+    return approved == true;
   }
 
   // ── Quick-Add manual transaction ──────────────────────────────────────────
@@ -182,7 +142,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           icon: '↑',
                           selected: !isCredit,
                           color: AppColors.error,
-                          onTap: () => setModal(() => isCredit = false),
+                          onTap: () => setModal(() {
+                            isCredit = false;
+                            selectedCategory = null;
+                          }),
                         ),
                         const SizedBox(width: 10),
                         _TypeChip(
@@ -190,7 +153,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           icon: '↓',
                           selected: isCredit,
                           color: AppColors.success,
-                          onTap: () => setModal(() => isCredit = true),
+                          onTap: () => setModal(() {
+                            isCredit = true;
+                            selectedCategory = null;
+                          }),
                         ),
                       ],
                     ),
@@ -646,6 +612,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                         onDismissed: (_) async {
                                           t.isIgnored = true;
                                           await t.save();
+                                          if (!context.mounted) return;
                                           ref.invalidate(transactionsProvider);
                                           ref.invalidate(homeStatsProvider);
                                           ref.invalidate(allTransactionsProvider);
@@ -732,11 +699,24 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                               Column(
                                                 crossAxisAlignment: CrossAxisAlignment.end,
                                                 children: [
-                                                  Text(
-                                                    '${t.isCredit ? '+' : '-'}₹${_fmt(t.amount)}',
-                                                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                                          color: t.isCredit ? AppColors.success : AppColors.error,
-                                                        ),
+                                                  Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        t.isCredit
+                                                            ? Icons.arrow_downward_rounded
+                                                            : Icons.arrow_upward_rounded,
+                                                        size: 10,
+                                                        color: t.isCredit ? AppColors.success : AppColors.error,
+                                                      ),
+                                                      const SizedBox(width: 2),
+                                                      Text(
+                                                        '₹${_fmt(t.amount)}',
+                                                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                                              color: t.isCredit ? AppColors.success : AppColors.error,
+                                                            ),
+                                                      ),
+                                                    ],
                                                   ),
                                                   Text(
                                                     DateFormat('h:mm a').format(t.transactionDate),
@@ -848,7 +828,7 @@ class _TransactionOptionsSheetState extends ConsumerState<_TransactionOptionsShe
                   children: [
                     Text(widget.transaction.merchant, style: Theme.of(context).textTheme.labelLarge),
                     Text(
-                      '${widget.transaction.isCredit ? '+' : '-'}₹${widget.transaction.amount.toStringAsFixed(0)}',
+                      '${widget.transaction.isCredit ? 'Received' : 'Spent'} ₹${widget.transaction.amount.toStringAsFixed(0)}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: widget.transaction.isCredit ? AppColors.success : AppColors.error,
                           ),
@@ -921,6 +901,73 @@ class _TransactionOptionsSheetState extends ConsumerState<_TransactionOptionsShe
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Impulse Check Countdown Dialog ───────────────────────────────────────────
+
+class _ImpulseCountdownDialog extends StatefulWidget {
+  final int txnCount;
+  const _ImpulseCountdownDialog({required this.txnCount});
+  @override
+  State<_ImpulseCountdownDialog> createState() => _ImpulseCountdownDialogState();
+}
+
+class _ImpulseCountdownDialogState extends State<_ImpulseCountdownDialog> {
+  int _remaining = 5;
+  late final Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      if (_remaining <= 1) {
+        t.cancel();
+        Navigator.of(context).pop(true);
+      } else {
+        setState(() => _remaining--);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text('Spending Check'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'You\'ve already logged ${widget.txnCount} transactions today.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Take a moment — continuing in',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$_remaining',
+            style: TextStyle(
+              fontSize: 40,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
           ),
         ],
       ),

@@ -173,7 +173,7 @@ final taxInsightsProvider = FutureProvider<TaxInsights>((ref) async {
 
   const healthKeywords = ['pharmacy', 'hospital', 'clinic', 'health', 'medical', 'doctor', 'insurance'];
   const investmentKeywords = ['ppf', 'elss', 'nps', 'lic', 'mutual fund', 'fd', 'zerodha', 'groww', 'sip'];
-  const rentKeywords = ['rent', 'rental', 'house rent', 'pg', 'hostel', 'emi'];
+  const rentKeywords = ['rent', 'rental', 'house rent', 'pg', 'hostel'];
 
   double health80D = 0, investment80C = 0, rentHRA = 0;
 
@@ -227,7 +227,9 @@ final cashFlowForecastProvider = FutureProvider<CashFlowForecast>((ref) async {
 
   final remaining = stats.totalIncome - stats.totalSpent;
   final dailyBudget = daysLeft > 0 ? remaining / daysLeft : 0.0;
-  final daysUntilEmpty = dailyAvg > 0 ? (remaining / dailyAvg).floor() : 999;
+  final daysUntilEmpty = (dailyAvg > 0 && remaining > 0)
+      ? (remaining / dailyAvg).floor()
+      : (remaining <= 0 ? 0 : 999);
 
   return (
     projectedSpend: projectedSpend,
@@ -275,9 +277,10 @@ final selectedMonthProvider = StateProvider<(int, int)>((ref) {
 });
 
 final selectedMonthTransactionsProvider = FutureProvider<List<Transaction>>((ref) async {
+  ref.watch(transactionCacheProvider); // refresh when SMS scan or edits occur
   final (year, month) = ref.watch(selectedMonthProvider);
   final repo = ref.watch(transactionRepositoryProvider);
-  final txns = repo.getByMonth(year, month);
+  final txns = List<Transaction>.from(repo.getByMonth(year, month));
   return txns..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
 });
 
@@ -356,7 +359,10 @@ final homeStatsProvider = FutureProvider<HomeStats>((ref) async {
     totalIncome: totalIncome,
     categoryTotals: categoryTotals,
     topPayees: topPayees,
-    recentTransactions: txns.take(5).toList(),
+    recentTransactions: (List<Transaction>.from(txns)
+          ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate)))
+        .take(5)
+        .toList(),
     safeToSpend: safeToSpend,
     daysRemainingInCycle: daysRemainingInCycle,
     cycleStart: cycleStart,

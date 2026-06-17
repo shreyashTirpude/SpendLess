@@ -2,11 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/hive_service.dart';
 import '../../domain/models/transaction.dart';
 import 'transaction_provider.dart';
+import 'cache_provider.dart';
 
 final topMerchantsProvider = FutureProvider<List<(String, int)>>((ref) async {
   final txns = await ref.watch(transactionsProvider.future);
   final merchantCount = <String, int>{};
-  for (final t in txns.where((t) => !t.isCredit)) {
+  for (final t in txns.where((t) => !t.isCredit && !t.isIgnored)) {
     merchantCount[t.merchant] = (merchantCount[t.merchant] ?? 0) + 1;
   }
   final sorted = merchantCount.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
@@ -14,10 +15,13 @@ final topMerchantsProvider = FutureProvider<List<(String, int)>>((ref) async {
 });
 
 final monthComparisonProvider = FutureProvider<Map<String, (double, double)>>((ref) async {
+  ref.watch(transactionCacheProvider);
   final now = DateTime.now();
   final thisMonth = await ref.watch(transactionsProvider.future);
 
-  final lastMonthDate = DateTime(now.year, now.month - 1);
+  final lastMonthDate = now.month == 1
+      ? DateTime(now.year - 1, 12)
+      : DateTime(now.year, now.month - 1);
   final lastMonth = HiveService.transactions.values
       .where((t) => t.transactionDate.year == lastMonthDate.year &&
                     t.transactionDate.month == lastMonthDate.month &&
@@ -25,10 +29,11 @@ final monthComparisonProvider = FutureProvider<Map<String, (double, double)>>((r
       .toList();
 
   final result = <String, (double, double)>{};
-  final categories = {...thisMonth.map((t) => t.category), ...lastMonth.map((t) => t.category)};
+  final thisDebits = thisMonth.where((t) => !t.isCredit && !t.isIgnored).toList();
+  final categories = {...thisDebits.map((t) => t.category), ...lastMonth.map((t) => t.category)};
 
   for (final cat in categories) {
-    final thisSpent = thisMonth.where((t) => t.category == cat && !t.isCredit).fold(0.0, (sum, t) => sum + t.amount);
+    final thisSpent = thisDebits.where((t) => t.category == cat).fold(0.0, (sum, t) => sum + t.amount);
     final lastSpent = lastMonth.where((t) => t.category == cat).fold(0.0, (sum, t) => sum + t.amount);
     result[cat] = (thisSpent, lastSpent);
   }
@@ -113,6 +118,7 @@ final projectedSpendProvider =
 
 // No-spend streak: consecutive days with zero debit transactions (ending today or yesterday)
 final noSpendStreakProvider = FutureProvider<int>((ref) async {
+  ref.watch(transactionCacheProvider);
   final all = HiveService.transactions.values
       .where((t) => !t.isIgnored && !t.isCredit)
       .toList();
@@ -128,13 +134,7 @@ final noSpendStreakProvider = FutureProvider<int>((ref) async {
   var check = DateTime.now();
   int streak = 0;
 
-  // If today has no spend, start counting from today
-  final today = DateTime(check.year, check.month, check.day);
-  if (!spendDays.contains(today)) {
-    // Count backwards from yesterday
-    check = check.subtract(const Duration(days: 1));
-  }
-
+  // Count backwards from today — if today has no spend, it counts too
   while (streak < 365) {
     final day = DateTime(check.year, check.month, check.day);
     if (spendDays.contains(day)) break;
@@ -177,9 +177,7 @@ final insightCardsProvider = FutureProvider<List<String>>((ref) async {
     }
   }
 
-  if (streak >= 2) {
-    insights.add('🏆 ${streak}-day no-spend streak — incredible discipline!');
-  }
+  // streak is shown in _StreakCard widget already — skip here to avoid duplication
 
   if (biggest != null) {
     insights.add('💸 Biggest transaction: ₹${_fmt(biggest.amount)} at ${biggest.merchant}');

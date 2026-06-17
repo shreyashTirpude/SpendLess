@@ -45,7 +45,7 @@ class SmsParser {
     'otp', 'one time password', 'verification code',
     'do not share', 'not share', 'expires in',
     'valid for', 'use this code', 'your code',
-    'offer', 'win ', 'winner', 'free ', 'subscribe now',
+    'offer', 'win ', 'winner', 'subscribe now',
     'congratulations you', 'limited time', 'exclusive deal',
     'your otp', 'pin is', 'secret code',
   ];
@@ -84,42 +84,36 @@ class SmsParser {
   }
 
   // Extract all candidate amounts, return the most likely transaction amount.
-  // Strategy: among candidates >= 1.0, return the one that appears nearest to
-  // a debit/credit keyword so we pick the "transaction amount" not the balance.
+  // Balance-exclusion strategy: first identify the balance value using extractBalance(),
+  // then return the first candidate (by pattern priority) that is NOT the balance.
+  // This correctly handles cases like "debited ₹50 ... Avl Bal: ₹12,456" — the old
+  // size-heuristic was returning 12,456 for small transactions like ₹50.
   static double? _extractBestAmount(String sms) {
+    final balVal = extractBalance(sms);
+
     final patterns = [
+      // Highest precision: explicit action keyword followed by amount
+      RegExp(r'(?:debited|credited|paid|sent|received)\s+(?:(?:by|with)\s+)?(?:INR|Rs\.?|₹)?\s*([\d,]+(?:\.\d{1,2})?)', caseSensitive: false),
+      // "of INR/Rs/₹ <amount>" — e.g. "payment of ₹500"
+      RegExp(r'of\s+(?:INR|Rs\.?|₹)\s*([\d,]+(?:\.\d{1,2})?)', caseSensitive: false),
+      // "amount/amt ₹<amount>" (colon optional)
+      RegExp(r'(?:amount|amt)(?:\s+of)?:?\s*(?:INR|Rs\.?|₹)?\s*([\d,]+(?:\.\d{1,2})?)', caseSensitive: false),
+      // General currency prefix — left-to-right, so transaction amount (printed first) wins
       RegExp(r'(?:INR|Rs\.?|₹)\s*([\d,]+(?:\.\d{1,2})?)', caseSensitive: false),
+      // General currency suffix
       RegExp(r'([\d,]+(?:\.\d{1,2})?)\s*(?:INR|Rs\.?)', caseSensitive: false),
-      RegExp(r'(?:amount|amt)(?:\s+of)?\s*(?:INR|Rs\.?|₹)?\s*([\d,]+(?:\.\d{1,2})?)', caseSensitive: false),
-      RegExp(r'(?:debited|credited|paid|sent|received)\s+(?:by\s+|with\s+)?(?:INR|Rs\.?|₹)?\s*([\d,]+(?:\.\d{1,2})?)', caseSensitive: false),
-      RegExp(r'(?:of\s+(?:INR|Rs\.?|₹)\s*)([\d,]+(?:\.\d{1,2})?)', caseSensitive: false),
     ];
 
-    final candidates = <double>[];
+    double? firstCandidate; // fallback if all candidates happen to equal balance
     for (final p in patterns) {
       for (final m in p.allMatches(sms)) {
         final v = double.tryParse(m.group(1)!.replaceAll(',', ''));
-        if (v != null && v >= 1.0 && v < 10000000) candidates.add(v);
+        if (v == null || v < 1.0 || v >= 1000000000) continue;
+        firstCandidate ??= v;
+        if (balVal == null || (v - balVal).abs() > 0.01) return v;
       }
     }
-    if (candidates.isEmpty) return null;
-
-    // Prefer the smallest qualifying value that's not a trivially small hint number.
-    // In most bank SMSes: "debited ₹500 from A/c XXXX1234 Avl Bal: ₹12,456"
-    // we want 500, not 12456. So take the FIRST match (by pattern priority) if > 0.
-    // If there's only one, return it directly.
-    if (candidates.length == 1) return candidates.first;
-
-    // Remove values that look like "last 4 digits" of account (< 10000 but <= 9999)
-    // being the only small value vs a large balance.
-    // Heuristic: if we have two+ candidates, take the one > 1 and < the largest,
-    // i.e. skip the balance.
-    candidates.sort();
-    // Return the second-smallest if we have 2+ and the smallest looks like an account stub
-    if (candidates.length >= 2 && candidates.first < 100 && candidates.last > 1000) {
-      return candidates[1];
-    }
-    return candidates.first;
+    return firstCandidate;
   }
 
   // Debit-first logic: explicit debit keywords override credit detection.
@@ -152,14 +146,14 @@ class SmsParser {
 
     // 2. "at MERCHANT NAME" — card/POS swipe pattern
     final atM = RegExp(
-      r'\bat\s+([A-Z][A-Za-z0-9 .&\-]{2,36})(?=\s+on|\s+via|\s+dated|[.,]|\d{2}[\/\-]|\s*$)',
+      r'\bat\s+([A-Za-z0-9][A-Za-z0-9 .&\-]{2,36})(?=\s+on|\s+via|\s+dated|[.,]|\d{2}[\/\-]|\s*$)',
       caseSensitive: false,
     ).firstMatch(sms);
     if (atM != null) return _clean(atM.group(1)!);
 
     // 3. "paid to NAME" / "sent to NAME" / "transferred to NAME"
     final toM = RegExp(
-      r'(?:paid\s+to|sent\s+to|transferred\s+to|to)\s+([A-Z][A-Za-z0-9 .&\-]{2,36})(?=\s+via|\s+on|\s+using|\s+ref|[.,]|\s*$)',
+      r'(?:paid\s+to|sent\s+to|transferred\s+to|to)\s+([A-Za-z0-9][A-Za-z0-9 .&\-]{2,36})(?=\s+via|\s+on|\s+using|\s+ref|[.,]|\s*$)',
       caseSensitive: false,
     ).firstMatch(sms);
     if (toM != null) return _clean(toM.group(1)!);
@@ -167,7 +161,7 @@ class SmsParser {
     // 4. "received from NAME" — for credit
     if (isCredit) {
       final fromM = RegExp(
-        r'(?:from|received\s+from)\s+([A-Z][A-Za-z0-9 .&\-]{2,36})(?=\s+via|\s+on|[.,]|\s*$)',
+        r'(?:from|received\s+from)\s+([A-Za-z0-9][A-Za-z0-9 .&\-]{2,36})(?=\s+via|\s+on|[.,]|\s*$)',
         caseSensitive: false,
       ).firstMatch(sms);
       if (fromM != null) return _clean(fromM.group(1)!);

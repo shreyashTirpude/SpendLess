@@ -49,6 +49,29 @@ class NotificationService {
     );
   }
 
+  Future<void> showDailyBudgetAlert({
+    required bool isWeekend,
+    required double spent,
+    required double limit,
+  }) async {
+    final dayType = isWeekend ? 'Weekend' : 'Weekday';
+    final excess = spent - limit;
+    await _plugin.show(
+      isWeekend ? 2001 : 2000,
+      isWeekend ? '🏖️ Weekend Limit Exceeded' : '📅 Weekday Limit Exceeded',
+      '$dayType: ₹${spent.toStringAsFixed(0)} spent — ₹${excess.toStringAsFixed(0)} over your ₹${limit.toStringAsFixed(0)} daily limit',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'daily_limits',
+          'Daily Spending Limits',
+          channelDescription: 'Alerts when daily spending exceeds your set limit',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+      ),
+    );
+  }
+
   Future<void> scheduleMondaySummary() async {
     try {
       await _plugin.zonedSchedule(
