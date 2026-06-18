@@ -9,10 +9,12 @@ import '../../providers/budget_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/recurring_provider.dart';
 import '../../providers/insights_provider.dart';
+import '../../providers/festival_provider.dart';
 import '../../../core/utils/recurring_detector.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/category_engine.dart';
 import '../../../domain/models/transaction.dart';
+import '../../widgets/prediction_summary_card.dart';
 import 'category_detail_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -323,6 +325,12 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
+            // Salary run-out / daily safe-to-spend prediction
+            const SliverToBoxAdapter(child: PredictionSummaryCard()),
+
+            // Festival planner banner (shows when festival is within 60 days)
+            const SliverToBoxAdapter(child: _FestivalBanner()),
+
             // Upcoming Bills
             if (upcomingBills.isNotEmpty)
               SliverToBoxAdapter(
@@ -361,6 +369,81 @@ class HomeScreen extends ConsumerWidget {
     ],
   ),
 );
+  }
+}
+
+// ── Festival Banner ───────────────────────────────────────────────────────────
+
+class _FestivalBanner extends ConsumerWidget {
+  const _FestivalBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final festivalAsync = ref.watch(upcomingFestivalProvider);
+    return festivalAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (result) {
+        if (result == null) return const SizedBox.shrink();
+        final festival = result.festival;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: GestureDetector(
+            onTap: () => context.push('/festival'),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFFF6B35).withValues(alpha: 0.85),
+                    const Color(0xFFFF9500).withValues(alpha: 0.85),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6B35).withValues(alpha: 0.3),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Text(festival.emoji, style: const TextStyle(fontSize: 32)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          festival.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                        Text(
+                          'In ${result.daysUntilFestival} days · Plan ₹${result.estimatedBudget.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 

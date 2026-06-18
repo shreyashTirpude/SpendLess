@@ -1,7 +1,0 @@
-[    8077ms] [WARNING] registerExtension() from dart:developer is only supported in build/run/test environments where the developer event method hooks have been set by package:dwds v11.1.0 or higher. @ http://localhost:8080/dart_sdk.js:56813
-[    9284ms] [LOG] Got object store box in database transactions. @ http://localhost:8080/dart_sdk.js:33758
-[    9290ms] [LOG] Got object store box in database budgets. @ http://localhost:8080/dart_sdk.js:33758
-[    9293ms] [LOG] Got object store box in database user. @ http://localhost:8080/dart_sdk.js:33758
-[    9295ms] [LOG] Got object store box in database settings. @ http://localhost:8080/dart_sdk.js:33758
-[   81732ms] [WARNING] Could not find a set of Noto fonts to display all missing characters. Please add a font asset for the missing characters. See: https://flutter.dev/docs/cookbook/design/fonts @ http://localhost:8080/dart_sdk.js:207017
-[   92429ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8080/#/auth:0

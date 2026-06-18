@@ -39,3 +39,13 @@ Thumbs.db
 # Test
 coverage/
 .coverage
+
+# Playwright CLI session artifacts
+.playwright-cli/
+
+# Research / reference images (not part of source)
+apple_hig.png
+behance_finance.png
+dribbble_finance.png
+# Agent worktrees (temp; auto-cleaned)
+.claude/worktrees/

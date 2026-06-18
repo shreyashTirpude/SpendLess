@@ -1,8 +1,0 @@
-- generic [ref=e5] [cursor=pointer]:
-  - generic:
-    - generic:
-      - generic:
-        - dialog:
-          - generic [ref=e9]:
-            - generic: 🔒 Your data stays private Your SMS is processed on YOUR phone only. We never read or store your messages.
-          - button "Next" [active] [ref=e7]

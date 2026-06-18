@@ -12,6 +12,10 @@ import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/home/main_shell.dart';
 import '../../presentation/screens/subscriptions/subscriptions_screen.dart';
 import '../../presentation/screens/legal/terms_screen.dart';
+import '../../presentation/screens/paywall/paywall_screen.dart';
+import '../../presentation/screens/chat/chat_screen.dart';
+import '../../presentation/screens/savings/micro_savings_screen.dart';
+import '../../presentation/screens/festival/festival_planner_screen.dart';
 
 // Slide-in from right + fade-in combo for full-screen pushes
 Page<void> _slidePage(GoRouterState state, Widget child) {
@@ -77,6 +81,22 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/subscriptions',
       pageBuilder: (context, state) => _slidePage(state, const SubscriptionsScreen()),
+    ),
+    GoRoute(
+      path: '/paywall',
+      pageBuilder: (context, state) => _slidePage(state, const PaywallScreen()),
+    ),
+    GoRoute(
+      path: '/chat',
+      pageBuilder: (context, state) => _slidePage(state, const ChatScreen()),
+    ),
+    GoRoute(
+      path: '/savings',
+      pageBuilder: (context, state) => _slidePage(state, const MicroSavingsScreen()),
+    ),
+    GoRoute(
+      path: '/festival',
+      pageBuilder: (context, state) => _slidePage(state, const FestivalPlannerScreen()),
     ),
     ShellRoute(
       builder: (context, state, child) => MainShell(child: child),
