@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/data/festival_calendar.dart';
 import '../../data/local/hive_service.dart';
+import 'cache_provider.dart';
 import 'transaction_provider.dart';
 
 // ── Result model ───────────────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ class FestivalPlanResult {
 // ── Upcoming festival provider ─────────────────────────────────────────────────
 
 final upcomingFestivalProvider = FutureProvider<FestivalPlanResult?>((ref) async {
+  ref.watch(transactionCacheProvider);
   final txns = await ref.watch(transactionsProvider.future);
   final festival = FestivalCalendar.upcomingFestival();
   if (festival == null) return null;

@@ -16,6 +16,23 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   bool _upgrading = false;
 
   Future<void> _selectTier(SubscriptionTier tier) async {
+    final current = ref.read(subscriptionTierProvider);
+    if (tier.index < current.index) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Downgrade plan?'),
+          content: Text(
+            'You are on ${current.displayName}. Switching to ${tier.displayName} will remove access to some features.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Downgrade')),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
     setState(() => _upgrading = true);
     await ref.read(subscriptionTierProvider.notifier).upgradeTo(tier);
     if (mounted) {

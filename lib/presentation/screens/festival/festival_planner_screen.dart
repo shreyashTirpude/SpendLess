@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/data/festival_calendar.dart';
 import '../../../core/theme/app_colors.dart';
@@ -134,7 +135,7 @@ class _LockedState extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
                 ),
-                onPressed: () {},
+                onPressed: () => context.push('/paywall'),
                 child: const Text(
                   'Upgrade to Pro — ₹299/mo',
                   style: TextStyle(fontWeight: FontWeight.w700),

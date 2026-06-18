@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../domain/models/subscription_tier.dart';
 import '../../providers/micro_savings_provider.dart';
+import '../../providers/subscription_provider.dart';
 
 // ─── Paywall (reused pattern — same as chat_screen.dart) ─────────────────────
 
@@ -76,10 +79,7 @@ class _ProPaywallScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14)),
                     ),
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Upgrade flow coming soon!')),
-                      );
+                      context.push('/paywall');
                     },
                     child: const Text(
                       'Upgrade to Pro',
@@ -107,7 +107,7 @@ class _ProPaywallScreen extends StatelessWidget {
 
 // ─── Tier check ───────────────────────────────────────────────────────────────
 
-bool _isProUser() => true; // TODO: wire to real tier provider when available
+// Tier check is done inside build() via ref.watch — see MicroSavingsScreen.build()
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
 
@@ -146,7 +146,8 @@ class MicroSavingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!_isProUser()) {
+    final isProUser = ref.watch(isFeatureAvailableProvider('microSavings'));
+    if (!isProUser) {
       return const _ProPaywallScreen(featureName: 'Micro Savings');
     }
 

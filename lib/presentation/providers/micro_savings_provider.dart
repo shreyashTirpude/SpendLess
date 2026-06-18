@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'cache_provider.dart';
 import 'transaction_provider.dart';
 
 // ─── Models ───────────────────────────────────────────────────────────────────
@@ -33,6 +34,7 @@ bool _kw(String text, List<String> keywords) =>
 
 final microSavingsProvider =
     FutureProvider<List<SavingOpportunity>>((ref) async {
+  ref.watch(transactionCacheProvider);
   final txns = await ref.watch(transactionsProvider.future);
 
   final now = DateTime.now();

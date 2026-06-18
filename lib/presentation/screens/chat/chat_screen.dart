@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../domain/models/subscription_tier.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/subscription_provider.dart';
 
 // ─── Paywall ──────────────────────────────────────────────────────────────────
 
@@ -77,11 +80,7 @@ class _ProPaywallScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14)),
                     ),
                     onPressed: () {
-                      // Navigate to upgrade screen — route wired by caller
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Upgrade flow coming soon!')),
-                      );
+                      context.push('/paywall');
                     },
                     child: const Text(
                       'Upgrade to Pro',
@@ -110,9 +109,7 @@ class _ProPaywallScreen extends StatelessWidget {
 // ─── Tier check ───────────────────────────────────────────────────────────────
 
 /// Returns true if the user has Pro tier access.
-/// Right now there is no tier system persisted — defaults to Pro (open access).
-/// Replace this logic once a real subscription/tier provider exists.
-bool _isProUser() => true; // TODO: wire to real tier provider when available
+// Tier check is done inside build() via ref.watch — see ChatScreen.build()
 
 // ─── Chat screen ──────────────────────────────────────────────────────────────
 
@@ -160,16 +157,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _controller.clear();
     setState(() => _isTyping = true);
 
-    final ctxAsync = ref.read(chatContextProvider);
     Map<String, double> categoryTotals = {};
     double totalSpent = 0;
     double totalIncome = 0;
 
-    ctxAsync.whenData((ctx) {
+    try {
+      final ctx = await ref.read(chatContextProvider.future);
       categoryTotals = ctx.categoryTotals;
       totalSpent = ctx.totalSpent;
       totalIncome = ctx.totalIncome;
-    });
+    } catch (_) {
+      // proceed with zero context — template fallback handles it
+    }
 
     _scrollToBottom();
 
@@ -186,7 +185,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (!_isProUser()) {
+    final isProUser = ref.watch(isFeatureAvailableProvider('chatbot'));
+    if (!isProUser) {
       return const _ProPaywallScreen(featureName: 'AI Money Coach');
     }
 
