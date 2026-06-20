@@ -29,7 +29,7 @@ void main() async {
     debugPrint('[SpendLens] Hive init failed: $e');
   }
 
-  // Seed demo transactions on macOS / iOS where SMS is unavailable
+  // Seed demo data on every non-Android platform (macOS, web, iOS, Windows)
   if (!_isAndroid) {
     try {
       await DemoDataService.seed();
