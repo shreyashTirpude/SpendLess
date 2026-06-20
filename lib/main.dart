@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -8,6 +9,10 @@ import 'core/theme/app_theme.dart';
 import 'data/local/hive_service.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'services/password_service.dart';
+import 'services/demo_data_service.dart';
+
+bool get _isAndroid =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +27,15 @@ void main() async {
     await HiveService.initialize();
   } catch (e) {
     debugPrint('[SpendLens] Hive init failed: $e');
+  }
+
+  // Seed demo transactions on macOS / iOS where SMS is unavailable
+  if (!_isAndroid) {
+    try {
+      await DemoDataService.seed();
+    } catch (e) {
+      debugPrint('[SpendLens] Demo seed: $e');
+    }
   }
 
   try {

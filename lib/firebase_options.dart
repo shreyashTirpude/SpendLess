@@ -11,6 +11,8 @@ class DefaultFirebaseOptions {
         return android;
       case TargetPlatform.iOS:
         return ios;
+      case TargetPlatform.macOS:
+        return macos;
       default:
         return web;
     }
@@ -39,6 +41,16 @@ class DefaultFirebaseOptions {
     messagingSenderId: '953750850312',
     projectId: 'spendless-276d9',
     storageBucket: 'spendless-276d9.appspot.com',
-    iosBundleId: 'com.example.spendlens',
+    iosBundleId: 'com.spendlens.spendlens',
+  );
+
+  // macOS uses the same project; Firebase for macOS shares the iOS config
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyBOAraJbQRJ_0Keqb6kyHByjCZhdG2WVXA',
+    appId: '1:953750850312:ios:c461d798e62670daafbabd',
+    messagingSenderId: '953750850312',
+    projectId: 'spendless-276d9',
+    storageBucket: 'spendless-276d9.appspot.com',
+    iosBundleId: 'com.spendlens.spendlens',
   );
 }
