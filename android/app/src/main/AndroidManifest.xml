@@ -9,6 +9,9 @@
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
     <uses-permission android:name="android.permission.READ_SMS"/>
 
+    <!-- Contacts (for Friends/Family P2P classification) -->
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
+
     <!-- Background / boot -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>

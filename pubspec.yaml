@@ -40,6 +40,9 @@ dependencies:
   local_auth: ^2.3.0
   flutter_secure_storage: ^9.0.0
 
+  # Contacts
+  flutter_contacts: ^1.1.7+1
+
   # Permissions
   permission_handler: ^11.3.1
 
@@ -73,6 +76,7 @@ dev_dependencies:
   json_annotation: ^4.9.0
   json_serializable: ^6.8.0
   mockito: ^5.4.4
+  test: any
 
 flutter:
   uses-material-design: true
