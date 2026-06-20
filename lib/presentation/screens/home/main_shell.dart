@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/local/hive_service.dart';
 import '../../../services/sms_scanner_service.dart';
+import '../../../services/demo_data_service.dart';
 import '../../providers/cache_provider.dart';
+
+bool get _isDemoMode =>
+    kIsWeb || defaultTargetPlatform != TargetPlatform.android;
 
 class MainShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -44,6 +49,69 @@ class _MainShellState extends ConsumerState<MainShell> {
     super.dispose();
   }
 
+  void _showDemoInfo(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Text('🧪', style: TextStyle(fontSize: 24)),
+              const SizedBox(width: 12),
+              Text('Demo Mode', style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 12),
+            Text(
+              '150+ mock transactions across 4 months. All Pro features unlocked. '
+              'No real SMS data is used.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 20),
+            const _DemoFeatureRow('💸', 'Transactions', '150+ entries across 18 categories'),
+            const _DemoFeatureRow('📊', 'Budgets', 'Pre-set limits — some over, some under'),
+            const _DemoFeatureRow('🔄', 'Subscriptions', 'Netflix, Spotify, Hotstar recurring'),
+            const _DemoFeatureRow('📈', 'Insights', 'Month-over-month trends + day ranking'),
+            const _DemoFeatureRow('💰', 'Cashflow', 'Salary, Rent, Friends, Family buckets'),
+            const _DemoFeatureRow('🎉', 'Festival Planner', 'Diwali, Dussehra budgets set'),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Reset & Re-seed Demo Data'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF7C3AED),
+                  side: const BorderSide(color: Color(0xFF7C3AED)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await DemoDataService.reset();
+                  await DemoDataService.seed();
+                  if (mounted) ref.read(transactionCacheProvider.notifier).bump();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Demo data reset and re-seeded ✓')),
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   int _selectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     if (location.startsWith('/transactions')) return 1;
@@ -59,15 +127,60 @@ class _MainShellState extends ConsumerState<MainShell> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: child,
-        ),
-        child: KeyedSubtree(key: ValueKey(idx), child: widget.child),
+      body: Stack(
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+              child: child,
+            ),
+            child: KeyedSubtree(key: ValueKey(idx), child: widget.child),
+          ),
+          // Demo mode banner — top-right corner
+          if (_isDemoMode)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              right: 12,
+              child: GestureDetector(
+                onTap: () => _showDemoInfo(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF7C3AED), Color(0xFF6366F1)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF7C3AED).withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('🧪', style: TextStyle(fontSize: 11)),
+                      SizedBox(width: 4),
+                      Text(
+                        'DEMO',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       bottomNavigationBar: _PillNavBar(
         selectedIndex: idx,
@@ -81,6 +194,40 @@ class _MainShellState extends ConsumerState<MainShell> {
             case 4: context.go('/settings'); break;
           }
         },
+      ),
+    );
+  }
+}
+
+// ── Demo feature row ──────────────────────────────────────────────────────────
+
+class _DemoFeatureRow extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  const _DemoFeatureRow(this.emoji, this.title, this.subtitle);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+                children: [
+                  TextSpan(text: '$title  ', style: const TextStyle(
+                    color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                  TextSpan(text: subtitle),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

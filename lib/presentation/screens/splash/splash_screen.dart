@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/local/hive_service.dart';
 import '../../../services/password_service.dart';
+
+bool get _isDemoMode =>
+    kIsWeb || defaultTargetPlatform != TargetPlatform.android;
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -20,8 +24,15 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateAfterDelay() async {
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(Duration(milliseconds: _isDemoMode ? 800 : 2000));
     if (!mounted) return;
+
+    // Demo mode: skip every gate — go straight to /home
+    if (_isDemoMode) {
+      context.go('/home');
+      return;
+    }
+
     try {
       // Gate 1: Terms & Conditions must be accepted before anything else
       final termsAccepted =
@@ -79,6 +90,27 @@ class _SplashScreenState extends State<SplashScreen> {
                 valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
               ),
             ),
+            if (_isDemoMode) ...[
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7C3AED), Color(0xFF6366F1)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  '🧪  DEMO MODE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
