@@ -11,7 +11,10 @@ class NotificationService {
   static bool get _isMacOS =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
 
+  bool _initialized = false;
+
   Future<void> initialize() async {
+    if (_initialized) return;
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const darwinInit = DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -22,6 +25,30 @@ class NotificationService {
       android: androidInit,
       macOS: darwinInit,
     ));
+
+    // Android 13+ requires an explicit runtime notification permission.
+    if (_isAndroid) {
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    }
+    _initialized = true;
+  }
+
+  /// Send a test notification so the user can confirm alerts are working.
+  Future<void> sendTest() async {
+    await initialize();
+    await _plugin.show(
+      9999,
+      '🔔 Alerts are on',
+      'You\'ll get notified about budgets and new transactions.',
+      _buildDetails(
+        androidChannelId: 'test',
+        androidChannelName: 'Test',
+        high: true,
+      ),
+    );
   }
 
   Future<void> showTransactionNotif({

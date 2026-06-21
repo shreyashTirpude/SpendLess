@@ -2,16 +2,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/local/hive_service.dart';
 import '../../domain/models/user_profile.dart';
+import '../../services/auth/auth_service.dart';
 
 // ─── User Profile ────────────────────────────────────────────────────────────
 
 class UserProfileNotifier extends Notifier<UserProfile?> {
   @override
-  UserProfile? build() => _load();
+  UserProfile? build() {
+    final p = _load();
+    _autoSyncFromAccount(p);
+    return p;
+  }
 
   UserProfile? _load() {
     final profiles = HiveService.user.values;
     return profiles.isEmpty ? null : profiles.first;
+  }
+
+  /// If the user signed up / logged in, auto-fill the profile name from their
+  /// account so Settings reflects it without re-entry.
+  void _autoSyncFromAccount(UserProfile? p) {
+    final acct = AuthService.currentUser;
+    if (acct == null) return;
+    final nameMissing = (p?.name == null || (p?.name?.isEmpty ?? true));
+    if (nameMissing && acct.name.isNotEmpty) {
+      Future.microtask(() => updateName(acct.name));
+    }
   }
 
   Future<UserProfile> _ensureProfile() async {
@@ -45,6 +61,11 @@ class UserProfileNotifier extends Notifier<UserProfile?> {
 final userProfileProvider = NotifierProvider<UserProfileNotifier, UserProfile?>(
   UserProfileNotifier.new,
 );
+
+/// The authenticated account's email (auto-synced display in Settings).
+final accountEmailProvider = Provider<String?>((ref) {
+  return AuthService.currentUser?.email;
+});
 
 // ─── App Settings (notifications, preferences) ───────────────────────────────
 

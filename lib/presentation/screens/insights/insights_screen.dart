@@ -55,6 +55,22 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
             ),
             const SizedBox(height: 20),
 
+            // Financial health score
+            ref.watch(financialHealthProvider).maybeWhen(
+                  data: (h) => ref.watch(savingsRateProvider).maybeWhen(
+                        data: (s) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _HealthScoreCard(
+                              score: h.score,
+                              label: h.label,
+                              tip: h.tip,
+                              savingsRatePct: (s.rate * 100).round()),
+                        ),
+                        orElse: () => const SizedBox.shrink(),
+                      ),
+                  orElse: () => const SizedBox.shrink(),
+                ),
+
             // Summary stats row
             projected.when(
               loading: () => const SizedBox.shrink(),
@@ -1306,4 +1322,122 @@ String _fmt(double amount) {
   if (amount >= 100000) return '${(amount / 100000).toStringAsFixed(1)}L';
   if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
   return amount.toStringAsFixed(0);
+}
+
+// ── Financial health score card ───────────────────────────────────────────────
+
+class _HealthScoreCard extends StatelessWidget {
+  final int score;
+  final String label;
+  final String tip;
+  final int savingsRatePct;
+
+  const _HealthScoreCard({
+    required this.score,
+    required this.label,
+    required this.tip,
+    required this.savingsRatePct,
+  });
+
+  Color get _color => switch (score) {
+        >= 80 => AppColors.success,
+        >= 60 => AppColors.primaryLight,
+        >= 40 => AppColors.warning,
+        _ => AppColors.error,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            _color.withValues(alpha: 0.16),
+            _color.withValues(alpha: 0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          // Gauge ring
+          SizedBox(
+            width: 76,
+            height: 76,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 76,
+                  height: 76,
+                  child: CircularProgressIndicator(
+                    value: score / 100,
+                    strokeWidth: 7,
+                    backgroundColor: context.cardBorderColor,
+                    valueColor: AlwaysStoppedAnimation<Color>(_color),
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('$score',
+                        style: TextStyle(
+                            color: context.textPrimary,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            height: 1)),
+                    Text('/100',
+                        style: TextStyle(
+                            color: context.textMuted, fontSize: 10)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('Financial Health',
+                        style: TextStyle(
+                            color: context.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _color.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(label,
+                          style: TextStyle(
+                              color: _color,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(tip,
+                    style: TextStyle(
+                        color: context.textSecondary, fontSize: 12, height: 1.35)),
+                const SizedBox(height: 6),
+                Text('Savings rate: $savingsRatePct%',
+                    style: TextStyle(
+                        color: _color, fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

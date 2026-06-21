@@ -12,6 +12,7 @@ import '../../../services/password_service.dart';
 import '../../../services/sms_scanner_service.dart';
 import '../../../services/auth/auth_service.dart';
 import '../../../services/demo_data_service.dart';
+import '../../../services/notification_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/transaction_provider.dart';
@@ -30,6 +31,7 @@ class SettingsScreen extends ConsumerWidget {
     final profile = ref.watch(userProfileProvider);
     final settings = ref.watch(appSettingsProvider);
     final savingsGoal = ref.watch(savingsGoalProvider);
+    final accountEmail = ref.watch(accountEmailProvider);
 
     return Scaffold(
       backgroundColor: context.bgColor,
@@ -70,6 +72,28 @@ class SettingsScreen extends ConsumerWidget {
                 initial: profile?.name ?? '',
                 onSave: (v) => ref.read(userProfileProvider.notifier).updateName(v),
               ),
+            ),
+            _ActionTile(
+              icon: '📧',
+              title: 'Email',
+              subtitle: accountEmail?.isNotEmpty == true
+                  ? accountEmail!
+                  : 'Not signed in — synced from your account',
+              trailing: accountEmail?.isNotEmpty == true
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('Synced',
+                          style: TextStyle(
+                              color: AppColors.success,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold)),
+                    )
+                  : null,
+              onTap: () {},
             ),
             _ActionTile(
               icon: '📱',
@@ -209,6 +233,20 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'Every Monday — spending snapshot summary',
               value: settings.weeklyReports,
               onChanged: (_) => ref.read(appSettingsProvider.notifier).toggle('weeklyReports'),
+            ),
+            _ActionTile(
+              icon: '🔔',
+              title: 'Send Test Alert',
+              subtitle: 'Check that notifications are working on this device',
+              onTap: () async {
+                await NotificationService().sendTest();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Test alert sent — check your notifications')),
+                  );
+                }
+              },
             ),
             const SizedBox(height: 20),
 

@@ -104,6 +104,8 @@ class SmsScannerService {
   static Future<void> _checkDailyBudget() async {
     try {
       final settings = HiveService.settings;
+      // Respect the user's "Budget alerts" toggle.
+      if (!(settings.get('budgetAlerts', defaultValue: true) as bool)) return;
       final now = DateTime.now();
       final isWeekend =
           now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;

@@ -49,8 +49,9 @@ class StreakService {
     await settings.put('longest_streak', max(longest, currentStreak));
     await settings.put('streak_last_checked', today);
 
-    // Send notification for milestones
-    if (currentStreak > 0 && currentStreak % 5 == 0) {
+    // Send notification for milestones (respects the "Transaction alerts" toggle)
+    final alertsOn = settings.get('transactionAlerts', defaultValue: true) as bool;
+    if (alertsOn && currentStreak > 0 && currentStreak % 5 == 0) {
       await NotificationService().showTransactionNotif(
         title: '🔥 $currentStreak-day streak!',
         body: 'You\'ve stayed under budget for $currentStreak days in a row',

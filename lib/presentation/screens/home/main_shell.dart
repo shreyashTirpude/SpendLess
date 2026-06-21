@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/local/hive_service.dart';
 import '../../../services/sms_scanner_service.dart';
 import '../../../services/demo_data_service.dart';
+import '../../../services/notification_service.dart';
 import '../../providers/cache_provider.dart';
 
 bool get _isDemoMode =>
@@ -38,6 +39,8 @@ class _MainShellState extends ConsumerState<MainShell>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Initialise notifications + request Android 13 permission once.
+      await NotificationService().initialize();
       await SmsScannerService.startListening();
       await _rescan();
     });
