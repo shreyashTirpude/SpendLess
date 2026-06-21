@@ -1,46 +1,53 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/auth/auth_models.dart';
 
-final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
+/// Exposes the current authenticated account and auth operations.
+/// Backed by [AuthService] (local enterprise auth, Supabase when configured).
+final authProvider =
+    StateNotifierProvider<AuthNotifier, AsyncValue<AuthAccount?>>((ref) {
   return AuthNotifier();
 });
 
-class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
-  AuthNotifier() : super(AsyncValue.data(FirebaseAuth.instance.currentUser));
+class AuthNotifier extends StateNotifier<AsyncValue<AuthAccount?>> {
+  AuthNotifier() : super(AsyncValue.data(AuthService.currentUser));
 
-  Future<bool> loginWithEmail(String email, String password) async {
+  AuthAccount? get account => state.valueOrNull;
+
+  Future<AuthResult> login(String email, String password,
+      {String? mfaCode}) async {
     state = const AsyncValue.loading();
-    try {
-      final result = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email, password: password,
-      );
-      state = AsyncValue.data(result.user);
-      return result.user != null;
-    } on FirebaseAuthException catch (e) {
-      state = AsyncValue.error(e.message ?? 'Login failed', StackTrace.current);
-      return false;
-    }
+    final res = await AuthService.login(
+        email: email, password: password, mfaCode: mfaCode);
+    state = AsyncValue.data(res.ok ? res.account : AuthService.currentUser);
+    return res;
   }
 
-  Future<bool> signUpWithEmail(String name, String email, String password) async {
+  Future<AuthResult> signUp(String name, String email, String password) async {
     state = const AsyncValue.loading();
-    try {
-      final result = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email, password: password,
-      );
-      if (result.user != null && name.isNotEmpty) {
-        await result.user!.updateDisplayName(name);
-      }
-      state = AsyncValue.data(result.user);
-      return result.user != null;
-    } on FirebaseAuthException catch (e) {
-      state = AsyncValue.error(e.message ?? 'Signup failed', StackTrace.current);
-      return false;
-    }
+    final res = await AuthService.signUp(
+        name: name, email: email, password: password);
+    state = AsyncValue.data(res.ok ? res.account : AuthService.currentUser);
+    return res;
   }
+
+  Future<AuthResult> requestReset(String email) =>
+      AuthService.requestPasswordReset(email);
+
+  Future<AuthResult> confirmReset(
+          String email, String otp, String newPassword) =>
+      AuthService.confirmPasswordReset(
+          email: email, otp: otp, newPassword: newPassword);
+
+  void refresh() => state = AsyncValue.data(AuthService.currentUser);
 
   Future<void> signOut() async {
-    await FirebaseAuth.instance.signOut();
+    await AuthService.signOut();
     state = const AsyncValue.data(null);
   }
 }
+
+/// Convenience: the live account (auto-refreshes when authProvider changes).
+final currentAccountProvider = Provider<AuthAccount?>((ref) {
+  return ref.watch(authProvider).valueOrNull;
+});

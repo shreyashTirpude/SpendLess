@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/local/hive_service.dart';
 import '../../../services/password_service.dart';
+import '../../../services/auth/auth_service.dart';
+import '../../../services/demo_data_service.dart';
 
-bool get _isDemoMode =>
+/// Non-Android platforms (macOS/web dev) auto-seed + skip straight to home.
+bool get _isDemoPlatform =>
     kIsWeb || defaultTargetPlatform != TargetPlatform.android;
+
+/// Show the DEMO badge when running on a demo platform OR the user explicitly
+/// activated demo mode from the login screen (works on Android too).
+bool get _isDemoMode => _isDemoPlatform || DemoDataService.isActive;
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -27,7 +33,7 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(Duration(milliseconds: _isDemoMode ? 800 : 2000));
     if (!mounted) return;
 
-    // Demo mode: skip every gate — go straight to /home
+    // Demo platform (mac/web) or an active demo session: skip every gate.
     if (_isDemoMode) {
       context.go('/home');
       return;
@@ -46,15 +52,17 @@ class _SplashScreenState extends State<SplashScreen> {
       final isOnboarded =
           HiveService.settings.get('isOnboarded', defaultValue: false) as bool;
       if (!isOnboarded) {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) {
-          context.go('/onboarding');
-          return;
-        }
-        await HiveService.settings.put('isOnboarded', true);
+        context.go('/onboarding');
+        return;
       }
 
-      // Gate 3: App lock
+      // Gate 3: Authentication — if not signed in, show login (with Demo option)
+      if (!AuthService.isLoggedIn) {
+        context.go('/auth');
+        return;
+      }
+
+      // Gate 4: App lock
       final locked = await PasswordService.hasPassword();
       context.go(locked ? '/lock' : '/home');
     } catch (_) {

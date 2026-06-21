@@ -4,12 +4,25 @@ import '../data/local/hive_service.dart';
 import '../domain/models/transaction.dart';
 import '../domain/models/budget.dart';
 import '../domain/models/user_profile.dart';
+import '../core/utils/sms_parser.dart';
 
 /// Seeds Hive with realistic Indian finance data covering every app feature.
 /// Only runs once (version-gated). Re-seed: delete app data or call [reset].
+///
+/// Two seeding paths:
+///   • [seed] — direct Transaction objects (full feature coverage; auto-runs
+///     on macOS/web at startup).
+///   • [seedViaSmsParser] — pushes raw bank SMS through the REAL [SmsParser]
+///     pipeline, so the demo proves the exact parsing logic that runs on a
+///     real Android device. Used by the in-app "Try Demo" button.
 class DemoDataService {
   static const _version = 'demo_v3';
   static const _uuid = Uuid();
+
+  /// True when the user has explicitly activated demo (any platform, incl.
+  /// Android) — drives the persistent DEMO chip + splash auto-skip.
+  static bool get isActive =>
+      HiveService.settings.get('demo_session', defaultValue: false) as bool;
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -26,8 +39,39 @@ class DemoDataService {
     debugPrint('[DemoDataService] Seeded all demo data ($ver → $_version)');
   }
 
+  /// Full demo activation from the in-app button — works on every platform
+  /// including Android. Runs the SMS-parser pipeline first (proving real
+  /// parsing), then layers the rich direct data for complete feature coverage.
+  static Future<void> activateDemo() async {
+    await HiveService.settings.put('demo_session', true);
+    final parsed = await seedViaSmsParser();
+    await seed(); // settings + budgets + profile + direct rich txns
+    debugPrint('[DemoDataService] Demo activated ($parsed via SMS parser)');
+  }
+
+  /// Runs ~45 realistic bank SMS through the production [SmsParser] and saves
+  /// whatever it successfully parses. Returns the count parsed — this is the
+  /// end-to-end proof that the parser handles real-world SMS formats.
+  static Future<int> seedViaSmsParser() async {
+    final box = HiveService.transactions;
+    int added = 0;
+    for (final (sms, date) in _smsCorpus()) {
+      final p = SmsParser.parse(sms, date, senderAddress: _senderFor(sms));
+      if (p == null) continue;
+      final tx = SmsParser.toTransaction(p);
+      if (!box.containsKey(tx.id) &&
+          !box.values.any((t) => t.rawSmsHash == tx.rawSmsHash)) {
+        await box.put(tx.id, tx);
+        added++;
+      }
+    }
+    debugPrint('[DemoDataService] Parsed $added/${_smsCorpus().length} SMS');
+    return added;
+  }
+
   static Future<void> reset() async {
     await HiveService.settings.delete('demo_version');
+    await HiveService.settings.delete('demo_session');
     await HiveService.transactions.clear();
     await HiveService.budgets.clear();
     await HiveService.user.clear();
@@ -423,6 +467,73 @@ class DemoDataService {
       await box.put(b.id, b);
     }
     debugPrint('[DemoDataService] Seeded ${budgets.length} budgets');
+  }
+
+  // ── Raw SMS corpus (exercises the real SmsParser pipeline) ──────────────────
+
+  /// 45 realistic Indian bank SMS spanning all banks + categories. Parsed by
+  /// the production [SmsParser] — proves the exact logic a real device runs.
+  static List<(String, DateTime)> _smsCorpus() => [
+        // HDFC
+        ('INR 2,450.00 debited from A/c XX4821 on 19-Jun-26 at 14:32. Info: ZOMATO*FOOD. UPI Ref: 512345678901. Avl Bal: INR 18,320.50. -HDFCBK', d(6, 19)),
+        ('INR 4,299.00 spent on HDFC Bank Card XX5678 at AMAZON SELLER on 18-Jun-26. Avl Lmt: INR 82,300. -HDFCBK', d(6, 18)),
+        ('INR 280.00 debited from A/c XX4821. Info: UBER*TRIP*BLR. Avl Bal: INR 24,590. -HDFCBK', d(6, 17)),
+        ('INR 22,450.00 debited from A/c XX4821 for ECS/NACH HDFC HOME LOAN EMI on 05-Jun-26. Avl Bal: INR 8,550. -HDFCBK', d(6, 5)),
+        ('INR 649.00 debited from A/c XX4821 via UPI to netflix1234@icici. Avl Bal INR 17,671. -HDFCBK', d(6, 1)),
+        ('Refund of INR 799.00 from FLIPKART credited to your HDFC A/c XX4821. Avl Bal: INR 18,319. -HDFCBK', d(6, 12)),
+        ('INR 2,000.00 debited from A/c XX4821. Info: HP PETROL PUMP*PUNE. Avl Bal: INR 16,441. -HDFCBK', d(6, 7)),
+        ('INR 10,000.00 withdrawn at ATM from A/c XX4821 on 10-Jun-26. Avl Bal: INR 28,320. -HDFCBK', d(6, 10)),
+        // SBI
+        ('Your A/C XXXXX0987 Credited INR 75,000.00 on 01/06/2026. Salary credit from TECHCORP. Avl Bal: INR 81,250. -SBIBNK', d(6, 1)),
+        ('Your a/c no. XXXX0987 is debited for Rs.1,450.00 on 13/06/2026 via UPI to irctc@sbi. UPI Ref 512345678902. -SBIBNK', d(6, 13)),
+        ('Rs.1,250.00 debited from SBI A/c XX0987 via UPI to bescom@sbi for electricity. Avl Bal Rs.80,000. -SBIBNK', d(6, 12)),
+        ('Rs.2,400.00 debited from SBI A/c XX0987 via UPI to epfo@sbi PF contribution. Avl Bal Rs.77,600. -SBIBNK', d(6, 1)),
+        // ICICI
+        ('ICICI Bank Acct XX5678 debited with INR 850.00 on 11-Jun-26; APOLLO PHARMACY credited. Avl Bal INR 9,150. -ICICIB', d(6, 11)),
+        ('INR 2,200.00 debited from ICICI A/c XX5678 via UPI to bigbasket@icici. Avl Bal: INR 18,000. -ICICIB', d(6, 3)),
+        ('INR 1,100.00 debited from ICICI A/c XX5678 via UPI to zepto@icici. Avl Bal: INR 16,900. -ICICIB', d(6, 9)),
+        ('INR 899.00 debited from ICICI A/c XX5678 via UPI to hotstar@icici. Avl Bal: INR 16,001. -ICICIB', d(6, 3)),
+        // Axis
+        ('Rs.750.00 debited from Axis Bank A/c XX9012 on 18-Jun-26. Info: SWIGGY*DELIVERY. UPI Ref No: 512398000111. Avl Bal: Rs.9,250. -AXISBK', d(6, 18)),
+        ('Rs.149.00 debited from Axis Bank A/c XX9012 via UPI to spotify@axis. Avl Bal: Rs.9,101. -AXISBK', d(6, 5)),
+        ('Rs.2,000.00 sent to rahul.sharma@ybl via UPI from Axis A/c XX9012. Avl Bal: Rs.7,101. -AXISBK', d(6, 6)),
+        ('Rs.5,000.00 sent to 9876543210@okicici via UPI from Axis A/c XX9012. Avl Bal: Rs.2,101. -AXISBK', d(6, 19)),
+        // Kotak
+        ('INR 5,000.00 debited from Kotak a/c XX3344 via UPI to groww@icici for SIP. Avl Bal INR 12,551. -KOTAKB', d(6, 10)),
+        ('INR 8,500.00 debited from Kotak a/c XX3344 for ECS/NACH LIC PREMIUM. Avl Bal INR 4,051. -KOTAKB', d(6, 8)),
+        // IDFC
+        ('Your IDFC FIRST Bank A/c XX7788 debited for INR 599.00 on 04-Jun-26 via UPI to airtel@idfc. Avl Bal: INR 9,401. -IDFCFB', d(6, 4)),
+        ('Your IDFC FIRST Bank A/c XX7788 debited for INR 3,500.00 via UPI to oyo@icici. Avl Bal: INR 5,901. -IDFCFB', d(6, 14)),
+        // May
+        ('INR 75,000.00 credited to Kotak a/c XX3344 on 01-May-26. Info: SAL/TECHCORP/MAY26. Avl Bal INR 82,100. -KOTAKB', d(5, 1)),
+        ('INR 22,450.00 debited from A/c XX4821 for ECS/NACH HDFC HOME LOAN EMI on 05-May-26. Avl Bal: INR 43,200. -HDFCBK', d(5, 5)),
+        ('INR 12,500.00 debited from ICICI Card XX5678 at MAKEMYTRIP on 13-May-26. Avl Lmt: INR 70,000. -ICICIB', d(5, 13)),
+        ('INR 4,850.00 spent on HDFC Card XX5678 at INDIGO on 14-May-26. -HDFCBK', d(5, 14)),
+        ('Rs.3,000.00 debited from Axis A/c XX9012 via UPI to coursera@axis. Avl Bal: Rs.20,000. -AXISBK', d(5, 5)),
+        ('INR 8,999.00 spent on HDFC Card XX5678 at AMAZON on 13-May-26. Avl Lmt: INR 60,000. -HDFCBK', d(5, 13)),
+        ('Rs.2,400.00 debited from SBI A/c XX0987 at BARBEQUE NATION on 28-May-26. Avl Bal Rs.50,000. -SBIBNK', d(5, 28)),
+        ('Rs.500.00 sent to ankit.verma@ybl via UPI from Axis A/c XX9012. Avl Bal: Rs.49,500. -AXISBK', d(5, 9)),
+        // April
+        ('Your A/C XXXXX0987 Credited INR 75,000.00 on 01/04/2026. Salary credit from TECHCORP. Avl Bal: INR 79,000. -SBIBNK', d(4, 1)),
+        ('INR 15,000.00 credited to A/c XX4821 on 10-Apr-26 via NEFT. Info: FREELANCE CONSULTING. Avl Bal: INR 50,000. -HDFCBK', d(4, 10)),
+        ('INR 25,000.00 debited from A/c XX4821 via UPI to rent.landlord@oksbi. Avl Bal: INR 25,000. -HDFCBK', d(4, 1)),
+        ('INR 25,000.00 debited from A/c XX4821 via NEFT to ZERODHA BROKING. Avl Bal: INR 30,000. -HDFCBK', d(4, 17)),
+        ('INR 12,999.00 spent on HDFC Card XX5678 at AMAZON on 07-Apr-26. -HDFCBK', d(4, 7)),
+        ('INR 6,999.00 spent on ICICI Card XX5678 at CROMA on 21-Apr-26. Avl Lmt: INR 55,000. -ICICIB', d(4, 21)),
+        ('INR 1,800.00 debited from A/c XX4821 via UPI to unacademy@ybl. Avl Bal: INR 18,000. -HDFCBK', d(4, 4)),
+        ('Rs.10,000.00 sent to papa.tirpude@sbi via UPI from SBI A/c XX0987. Avl Bal Rs.40,000. -SBIBNK', d(4, 5)),
+        ('INR 4,200.00 debited from A/c XX4821 for ECS/NACH BAJAJ FINANCE PERSONAL LOAN EMI. Avl Bal: INR 35,000. -HDFCBK', d(4, 7)),
+        ('INR 1,650.00 debited from ICICI Card XX5678 at NYKAA on 10-Apr-26. Avl Lmt: INR 60,000. -ICICIB', d(4, 10)),
+        ('INR 3,500.00 debited from A/c XX4821 via UPI to starhealth@hdfc insurance premium. Avl Bal: INR 31,500. -HDFCBK', d(5, 15)),
+        ('INR 960.00 debited from HDFC Card XX5678 at INOX on 08-Apr-26. -HDFCBK', d(4, 8)),
+        ('Rs.1,500.00 sent to priya.mehta@oksbi via UPI from Axis A/c XX9012. Avl Bal: Rs.8,000. -AXISBK', d(6, 13)),
+      ];
+
+  /// Infer the trusted bank sender ID from the SMS signature so the parser's
+  /// sender-allowlist path is exercised (must start with a known prefix).
+  static String _senderFor(String sms) {
+    final m = RegExp(r'-([A-Z]{5,6})$').firstMatch(sms.trim());
+    return m != null ? m.group(1)! : 'HDFCBK';
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

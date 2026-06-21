@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/onboarding/onboarding_screen.dart';
 import '../../presentation/screens/auth/auth_screen.dart';
+import '../../presentation/screens/auth/signup_screen.dart';
+import '../../presentation/screens/auth/forgot_password_screen.dart';
+import '../../presentation/screens/auth/mfa_setup_screen.dart';
 import '../../presentation/screens/auth/lock_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/transactions/transactions_screen.dart';
@@ -17,39 +20,52 @@ import '../../presentation/screens/chat/chat_screen.dart';
 import '../../presentation/screens/savings/micro_savings_screen.dart';
 import '../../presentation/screens/festival/festival_planner_screen.dart';
 
-// Slide-in from right + fade-in combo for full-screen pushes
+// Material shared-axis (X) — incoming slides+fades in, outgoing slides+fades out.
+// Gives a premium, directional feel for full-screen pushes.
 Page<void> _slidePage(GoRouterState state, Widget child) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 300),
-    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionDuration: const Duration(milliseconds: 360),
+    reverseTransitionDuration: const Duration(milliseconds: 300),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final slide = Tween<Offset>(
-        begin: const Offset(0.06, 0.0),
+      const curve = Curves.easeOutCubic;
+      final inSlide = Tween<Offset>(
+        begin: const Offset(0.10, 0.0),
         end: Offset.zero,
-      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+      ).animate(CurvedAnimation(parent: animation, curve: curve));
+      final outSlide = Tween<Offset>(
+        begin: Offset.zero,
+        end: const Offset(-0.06, 0.0),
+      ).animate(CurvedAnimation(parent: secondaryAnimation, curve: curve));
 
-      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
-
-      return FadeTransition(
-        opacity: fade,
-        child: SlideTransition(position: slide, child: child),
+      return SlideTransition(
+        position: outSlide,
+        child: SlideTransition(
+          position: inSlide,
+          child: FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            child: child,
+          ),
+        ),
       );
     },
   );
 }
 
-// Pure fade for splash/onboarding (no directional slide)
+// Shared-axis (Z) — scale + fade. For splash/onboarding/auth transitions.
 Page<void> _fadePage(GoRouterState state, Widget child) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 350),
+    transitionDuration: const Duration(milliseconds: 420),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final fade = CurvedAnimation(parent: animation, curve: Curves.easeInOut);
+      final scale = Tween<double>(begin: 0.96, end: 1.0)
+          .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
       return FadeTransition(
-        opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-        child: child,
+        opacity: fade,
+        child: ScaleTransition(scale: scale, child: child),
       );
     },
   );
@@ -69,6 +85,19 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/auth',
       pageBuilder: (context, state) => _slidePage(state, const AuthScreen()),
+    ),
+    GoRoute(
+      path: '/signup',
+      pageBuilder: (context, state) => _slidePage(state, const SignupScreen()),
+    ),
+    GoRoute(
+      path: '/forgot-password',
+      pageBuilder: (context, state) =>
+          _slidePage(state, const ForgotPasswordScreen()),
+    ),
+    GoRoute(
+      path: '/mfa-setup',
+      pageBuilder: (context, state) => _slidePage(state, const MfaSetupScreen()),
     ),
     GoRoute(
       path: '/lock',

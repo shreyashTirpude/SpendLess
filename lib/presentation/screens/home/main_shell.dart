@@ -11,7 +11,9 @@ import '../../../services/demo_data_service.dart';
 import '../../providers/cache_provider.dart';
 
 bool get _isDemoMode =>
-    kIsWeb || defaultTargetPlatform != TargetPlatform.android;
+    kIsWeb ||
+    defaultTargetPlatform != TargetPlatform.android ||
+    DemoDataService.isActive;
 
 class MainShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -130,13 +132,24 @@ class _MainShellState extends ConsumerState<MainShell> {
       body: Stack(
         children: [
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-              child: child,
-            ),
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) {
+              final slide = Tween<Offset>(
+                begin: const Offset(0, 0.025),
+                end: Offset.zero,
+              ).animate(animation);
+              final scale = Tween<double>(begin: 0.985, end: 1.0)
+                  .animate(animation);
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: slide,
+                  child: ScaleTransition(scale: scale, child: child),
+                ),
+              );
+            },
             child: KeyedSubtree(key: ValueKey(idx), child: widget.child),
           ),
           // Demo mode banner — top-right corner

@@ -10,6 +10,8 @@ import '../../../core/security/security_service.dart';
 import '../../../data/local/hive_service.dart';
 import '../../../services/password_service.dart';
 import '../../../services/sms_scanner_service.dart';
+import '../../../services/auth/auth_service.dart';
+import '../../../services/demo_data_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/transaction_provider.dart';
@@ -611,10 +613,11 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     if (confirm != true || !context.mounted) return;
-    await HiveService.settings.put('isOnboarded', false);
+    await AuthService.signOut();
+    await HiveService.settings.put('demo_session', false);
     await PasswordService.clearPassword();
     await ref.read(appSettingsProvider.notifier).setAppLock(false);
-    if (context.mounted) context.go('/onboarding');
+    if (context.mounted) context.go('/auth');
   }
 }
 
