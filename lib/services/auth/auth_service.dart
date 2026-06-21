@@ -263,8 +263,14 @@ class AuthService {
     } else {
       final days = account.daysUntilExpiry ?? 99;
       if (days <= 3 && EnvConfig.hasEmail) {
-        EmailService.sendExpiryReminder(
-            to: account.email, name: account.name, daysLeft: days);
+        // Send at most one reminder per day (avoid spamming on every getter call).
+        final today = DateTime.now().toIso8601String().substring(0, 10);
+        final last = HiveService.settings.get('expiry_reminder_sent') as String?;
+        if (last != today) {
+          HiveService.settings.put('expiry_reminder_sent', today);
+          EmailService.sendExpiryReminder(
+              to: account.email, name: account.name, daysLeft: days);
+        }
       }
     }
   }
@@ -425,12 +431,24 @@ class AuthService {
   static Future<bool> _supabaseVerifyRecovery(
       String email, String otp, String newPassword) async {
     try {
-      final resp = await http.post(
+      // 1. Verify the recovery OTP → returns a session (access_token).
+      final verify = await http.post(
         Uri.parse('${EnvConfig.supabaseUrl}/auth/v1/verify'),
         headers: _sbHeaders,
         body: jsonEncode({'type': 'recovery', 'email': email, 'token': otp}),
       );
-      return resp.statusCode >= 200 && resp.statusCode < 300;
+      if (verify.statusCode < 200 || verify.statusCode >= 300) return false;
+      final token =
+          (jsonDecode(verify.body) as Map<String, dynamic>)['access_token'];
+      if (token == null) return false;
+
+      // 2. Use that session to actually set the new password.
+      final update = await http.put(
+        Uri.parse('${EnvConfig.supabaseUrl}/auth/v1/user'),
+        headers: {..._sbHeaders, 'Authorization': 'Bearer $token'},
+        body: jsonEncode({'password': newPassword}),
+      );
+      return update.statusCode >= 200 && update.statusCode < 300;
     } catch (_) {
       return false;
     }

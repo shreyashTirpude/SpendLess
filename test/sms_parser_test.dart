@@ -348,6 +348,13 @@ void main() {
       expect(r, isNotNull);
       expect(r!.amount, 500000.00);
     });
+
+    test('Credited reversal (refund) is NOT dropped as failed', () {
+      final r = p('Rs.500.00 reversed and credited back to your A/c XX4821 for cancelled Amazon order. Avl Bal: Rs.8,500. -HDFCBK');
+      expect(r, isNotNull);
+      expect(r!.amount, 500.00);
+      expect(r.isCredit, true);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────

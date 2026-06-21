@@ -98,6 +98,17 @@ class SmsScannerService {
     await HiveService.transactions.put(tx.id, tx);
     debugPrint('[SmsScannerService] New transaction: ${tx.merchant} ₹${tx.amount}');
 
+    // Notify on the new transaction (respects the "Transaction alerts" toggle).
+    if (HiveService.settings.get('transactionAlerts', defaultValue: true) as bool) {
+      final notif = NotificationService();
+      await notif.initialize();
+      final sign = tx.isCredit ? '+' : '-';
+      await notif.showTransactionNotif(
+        title: '${tx.isCredit ? "💰 Received" : "💸 Spent"} $sign₹${tx.amount.toStringAsFixed(0)}',
+        body: '${tx.merchant} · ${tx.category}',
+      );
+    }
+
     await _checkDailyBudget();
   }
 

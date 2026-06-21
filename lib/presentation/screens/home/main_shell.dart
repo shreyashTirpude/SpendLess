@@ -40,7 +40,12 @@ class _MainShellState extends ConsumerState<MainShell>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Initialise notifications + request Android 13 permission once.
-      await NotificationService().initialize();
+      final notif = NotificationService();
+      await notif.initialize();
+      // Schedule the Monday summary if the user enabled weekly reports.
+      if (HiveService.settings.get('weeklyReports', defaultValue: true) as bool) {
+        await notif.scheduleMondaySummary();
+      }
       await SmsScannerService.startListening();
       await _rescan();
     });

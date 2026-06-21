@@ -47,7 +47,15 @@ class HiveService {
       _userBox,
       encryptionCipher: encryptionCipher,
     );
-    await Hive.openBox(_settingsBox);
+    // Settings box is encrypted too — it now holds auth accounts (PBKDF2 hashes,
+    // TOTP secrets, recovery hashes) and consent records. On upgrade from an
+    // older unencrypted box, recreate it (pre-release: acceptable reset).
+    try {
+      await Hive.openBox(_settingsBox, encryptionCipher: encryptionCipher);
+    } catch (_) {
+      await Hive.deleteBoxFromDisk(_settingsBox);
+      await Hive.openBox(_settingsBox, encryptionCipher: encryptionCipher);
+    }
   }
 
   static Box<Transaction> get transactions => Hive.box<Transaction>(_transactionsBox);

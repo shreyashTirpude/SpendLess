@@ -54,20 +54,31 @@ class DemoDataService {
   /// end-to-end proof that the parser handles real-world SMS formats.
   static Future<int> seedViaSmsParser() async {
     final box = HiveService.transactions;
+    final seen = box.values.map(_sig).toSet();
     int added = 0;
     for (final (sms, date) in _smsCorpus()) {
       final p = SmsParser.parse(sms, date, senderAddress: _senderFor(sms));
       if (p == null) continue;
       final tx = SmsParser.toTransaction(p);
-      if (!box.containsKey(tx.id) &&
-          !box.values.any((t) => t.rawSmsHash == tx.rawSmsHash)) {
-        await box.put(tx.id, tx);
-        added++;
-      }
+      // Anchor to the relative demo date (ignore the 2026 date in the SMS text)
+      // so the demo always populates the *current* month.
+      tx.transactionDate = date;
+      final sig = _sig(tx);
+      if (seen.contains(sig)) continue; // content-level dedup across seed paths
+      seen.add(sig);
+      await box.put(tx.id, tx);
+      added++;
     }
     debugPrint('[DemoDataService] Parsed $added/${_smsCorpus().length} SMS');
     return added;
   }
+
+  /// Content signature for cross-path dedup (random v4 ids and deterministic v5
+  /// ids never collide, so we dedup on what a transaction actually *is*).
+  static String _sig(Transaction t) =>
+      '${t.merchant.toLowerCase()}|${t.amount}|'
+      '${t.transactionDate.year}-${t.transactionDate.month}-${t.transactionDate.day}|'
+      '${t.isCredit}';
 
   static Future<void> reset() async {
     await HiveService.settings.delete('demo_version');
@@ -119,11 +130,13 @@ class DemoDataService {
 
   static Future<void> _seedTransactions() async {
     final box = HiveService.transactions;
+    final seen = box.values.map(_sig).toSet();
     final txns = _buildTransactions();
     for (final t in txns) {
-      if (!box.containsKey(t.id)) {
-        await box.put(t.id, t);
-      }
+      final sig = _sig(t);
+      if (box.containsKey(t.id) || seen.contains(sig)) continue;
+      seen.add(sig);
+      await box.put(t.id, t);
     }
     debugPrint('[DemoDataService] Added ${txns.length} transactions');
   }
@@ -576,7 +589,23 @@ class DemoDataService {
     );
   }
 
-  /// Shorthand: DateTime for a day in 2026
-  static DateTime d(int month, int day) =>
-      DateTime(2026, month, day, 10 + (day % 12), (day * 7) % 60);
+  /// Relative demo date. The data is authored with month 6 = "current month",
+  /// 5 = last month, 4 = two months ago, 3 = three months ago. We map those to
+  /// real months relative to today so the demo always populates the CURRENT
+  /// month (no hardcoded-2026 time-bomb). Current-month days are clamped to
+  /// today so there are never future-dated transactions.
+  static DateTime d(int month, int day) {
+    final now = DateTime.now();
+    final monthsAgo = 6 - month; // 6->0 (this month), 5->1, 4->2, 3->3
+    var y = now.year;
+    var m = now.month - monthsAgo;
+    while (m < 1) {
+      m += 12;
+      y -= 1;
+    }
+    final daysInMonth = DateTime(y, m + 1, 0).day;
+    var dd = day.clamp(1, daysInMonth);
+    if (monthsAgo == 0 && dd > now.day) dd = now.day;
+    return DateTime(y, m, dd, 10 + (day % 12), (day * 7) % 60);
+  }
 }

@@ -7,6 +7,7 @@ import '../../../services/auth/auth_models.dart';
 import '../../../services/demo_data_service.dart';
 import '../../../services/consent_service.dart';
 import '../../../core/data/consent_agreement.dart';
+import '../../providers/cache_provider.dart';
 import '../../widgets/auth/auth_scaffold.dart';
 import '../../widgets/auth/consent_checkbox.dart';
 
@@ -46,7 +47,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _snack('Please accept the Privacy Agreement to continue');
       return;
     }
-    await _recordConsent('login');
     setState(() => _loading = true);
 
     final res = await ref.read(authProvider.notifier).login(
@@ -60,6 +60,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     switch (res.status) {
       case AuthStatus.ok:
+        await _recordConsent('login'); // record only on a successful sign-in
+        if (!mounted) return;
         context.go('/home');
       case AuthStatus.mfaRequired:
         setState(() => _mfaRequired = true);
@@ -203,6 +205,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       ),
     );
     await DemoDataService.activateDemo();
+    ref.read(transactionCacheProvider.notifier).bump(); // surface seeded data
     if (!mounted) return;
     Navigator.of(context).pop(); // close loader
     context.go('/home');

@@ -420,7 +420,7 @@ class _UpiSheetState extends State<_UpiSheet> {
   String? _error;
 
   bool _validUpi(String v) =>
-      RegExp(r'^[\w.\-]{2,}@[a-zA-Z]{2,}$').hasMatch(v.trim());
+      RegExp(r'^[\w.\-]{2,256}@[a-zA-Z0-9]{2,}$').hasMatch(v.trim());
 
   void _submit() {
     final v = _controller.text.trim();

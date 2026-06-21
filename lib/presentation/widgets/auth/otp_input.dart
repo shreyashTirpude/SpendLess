@@ -69,7 +69,8 @@ class _OtpInputState extends State<OtpInput> {
   void _emit() {
     final val = _value;
     widget.onChanged(val);
-    if (val.length == widget.length && !val.contains('')) {
+    // All boxes filled (digits-only formatter guarantees non-empty chars).
+    if (val.length == widget.length) {
       widget.onCompleted?.call(val);
     }
   }

@@ -260,6 +260,11 @@ class SmsParser {
       'could not be processed', 'declined', 'reversed within',
       'will be reversed', 'has been reversed',
     ];
+    // A genuine refund often reads "reversed and credited back to your A/c" —
+    // that's a real CREDIT, not a failed debit. Don't drop it.
+    final isRefundCredit = (body.contains('credited') || body.contains('refund')) &&
+        (body.contains('revers') || body.contains('reversed'));
+    if (isRefundCredit) return false;
     return failKeywords.any((k) => body.contains(k));
   }
 
@@ -285,13 +290,35 @@ class SmsParser {
       caseSensitive: false,
     );
     final m = re.firstMatch(sms);
-    if (m != null) return m.group(1)!.toLowerCase();
+    if (m != null) {
+      final v = m.group(1)!.toLowerCase();
+      if (_isValidPayeeVpa(v)) return v;
+    }
 
     // Bare VPA in SMS body (HDFC Info: field, etc.)
-    final bare = RegExp(r'\b([\w.\-]{3,}@[\w]{2,})\b').firstMatch(sms);
-    if (bare != null) return bare.group(1)!.toLowerCase();
+    for (final match in RegExp(r'\b([\w.\-]{3,}@[\w]{2,})\b').allMatches(sms)) {
+      final v = match.group(1)!.toLowerCase();
+      if (_isValidPayeeVpa(v)) return v;
+    }
 
     return null;
+  }
+
+  /// Reject email addresses (support/no-reply lines) and noise handles that
+  /// look like a VPA but aren't a payee (e.g. info@hdfcbank.com, care@bank).
+  static bool _isValidPayeeVpa(String v) {
+    final parts = v.split('@');
+    if (parts.length != 2) return false;
+    final prefix = parts[0];
+    final suffix = parts[1];
+    // Real UPI handles have no dot in the suffix; emails do (.com/.in).
+    if (suffix.contains('.')) return false;
+    const noise = {
+      'info', 'noreply', 'no-reply', 'donotreply', 'alerts', 'alert',
+      'care', 'support', 'help', 'service', 'notifications', 'notify',
+    };
+    if (noise.contains(prefix)) return false;
+    return true;
   }
 
   static bool _isPersonalVpa(String vpa) {

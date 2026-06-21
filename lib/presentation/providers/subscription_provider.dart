@@ -59,9 +59,14 @@ class SubscriptionTierNotifier extends StateNotifier<SubscriptionTier> {
   }
 
   Future<void> downgrade() async {
-    await HiveService.settings.put('subscriptionTier', SubscriptionTier.free.name);
-    await HiveService.settings.put('tierExpiry', '');
-    await HiveService.settings.put('pro_auto_renew', false);
+    final s = HiveService.settings;
+    await s.put('subscriptionTier', SubscriptionTier.free.name);
+    await s.put('tierExpiry', '');
+    // Clear all Pro billing state so no ghost trial lingers after cancel.
+    await s.put('pro_auto_renew', false);
+    await s.put('pro_first_charge', '');
+    await s.put('pro_trial_start', '');
+    await s.put('pro_upi_id', '');
     if (AuthService.isLoggedIn) {
       await AuthService.setMembership(tier: 'free');
     }
@@ -84,8 +89,9 @@ class ProBilling {
     this.price = 99,
   });
 
-  int? get trialDaysLeft =>
-      firstCharge == null ? null : firstCharge!.difference(DateTime.now()).inDays;
+  int? get trialDaysLeft => firstCharge == null
+      ? null
+      : (firstCharge!.difference(DateTime.now()).inSeconds / 86400).ceil();
   bool get inTrial => (trialDaysLeft ?? -1) >= 0;
 }
 
@@ -115,8 +121,9 @@ class MembershipInfo {
   final DateTime? expiry;
   const MembershipInfo(this.tier, this.expiry);
 
-  int? get daysLeft =>
-      expiry == null ? null : expiry!.difference(DateTime.now()).inDays;
+  int? get daysLeft => expiry == null
+      ? null
+      : (expiry!.difference(DateTime.now()).inSeconds / 86400).ceil();
   bool get isExpiringSoon => daysLeft != null && daysLeft! <= 7 && daysLeft! >= 0;
   bool get isActive => tier != SubscriptionTier.free;
 }

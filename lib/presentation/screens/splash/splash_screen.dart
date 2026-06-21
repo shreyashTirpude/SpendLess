@@ -64,6 +64,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
       // Gate 4: App lock
       final locked = await PasswordService.hasPassword();
+      if (!mounted) return;
       context.go(locked ? '/lock' : '/home');
     } catch (_) {
       context.go('/onboarding');
