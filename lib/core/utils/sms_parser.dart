@@ -71,7 +71,7 @@ class SmsParser {
     'otp', 'one time password', 'verification code',
     'do not share', 'not share', 'expires in',
     'valid for', 'use this code', 'your code',
-    'offer', 'win ', 'winner', 'subscribe now',
+    'win ', 'winner', 'subscribe now',
     'congratulations you', 'limited time', 'exclusive deal',
     'your otp', 'pin is', 'secret code', 'cvv',
     // Failed / reversed transactions
@@ -79,6 +79,35 @@ class SmsParser {
     'declined', 'unsuccessful', 'could not be processed',
     'transaction has been reversed', 'amount will be reversed',
     'your upi transaction.*failed',
+  ];
+
+  // ── Promotional / loan-offer / marketing signals ──────────────────────────
+  // These are advertising messages that contain ₹ amounts and bank words but
+  // are NOT transactions (e.g. "You are eligible for a pre-approved loan of
+  // Rs 25,00,000. Apply now"). They're only rejected when the message does NOT
+  // look like a confirmed transaction (see [_looksConfirmed]) — so a real
+  // "NACH PERSONAL LOAN EMI debited" still goes through.
+  static const _promotionalKeywords = [
+    // loan / credit-card marketing
+    'pre-approved', 'pre approved', 'preapproved', 'pre-qualified',
+    'you are eligible', 'are eligible', 'eligible for', 'eligibility',
+    'loan offer', 'instant loan', 'loan up to', 'loan upto', 'loan of rs',
+    'loan of inr', 'loan of ₹', 'get a loan', 'avail a loan', 'avail loan',
+    'apply now', 'apply today', 'apply for', 'apply online', 'click to apply',
+    'loan approved', 'sanctioned for you', 'credit limit increase',
+    'increase your limit', 'upgrade your card', 'lifetime free card',
+    // rates / terms (marketing)
+    'interest rate', 'lowest interest', 'lowest emi', 'emi starting',
+    'starting at just', 'roi of', 'attractive interest', 'flexible tenure',
+    // rewards / discounts
+    'cashback', 'reward points', 'redeem', 'voucher', 'coupon', 'gift card',
+    'flat ', '% off', 'discount', 'mega sale', 'offer ends', 'best deal',
+    'special offer', 'festive offer', 'exclusive offer',
+    // call-to-action / spam markers
+    'click here', 'click the link', 'apply here', 't&c apply', 'tnc apply',
+    'call now', 'missed call', 'toll free', 'toll-free', 'give a missed call',
+    'download the app', 'install now', 'register now', 'hurry', 'last day',
+    'limited period', 'http://', 'https://', 'bit.ly', 'tinyurl', 'www.',
   ];
 
   // ── Bank signal keywords (need ≥2 hits) ──────────────────────────────────
@@ -90,7 +119,7 @@ class SmsParser {
     'inr', 'rs.', 'rs ', '₹',
     'bank', 'balance', 'avl bal', 'avail bal',
     'money received', 'amount received',
-    'spent at', 'withdrawn', 'purchase',
+    'spent at', 'spent on', 'spent', 'card', 'withdrawn', 'purchase',
     'pos', 'atm',
   ];
 
@@ -135,6 +164,9 @@ class SmsParser {
 
     if (_shouldReject(body)) return null;
     if (!_isBankSms(body)) return null;
+
+    // Skip promotional / loan-offer spam (unless it's a confirmed transaction)
+    if (_isPromotional(body) && !_looksConfirmed(body)) return null;
 
     // Skip failed transactions
     if (_isFailed(body)) return null;
@@ -185,6 +217,36 @@ class SmsParser {
 
   static bool _shouldReject(String body) =>
       _rejectKeywords.any((k) => body.contains(k));
+
+  /// Marketing/loan-offer language present.
+  static bool _isPromotional(String body) =>
+      _promotionalKeywords.any((k) => body.contains(k));
+
+  /// A genuine transaction confirmation: a settlement verb applied to an
+  /// account/card with a balance or reference. Loan/credit *offers* never have
+  /// this; real loan-EMI debits and disbursal credits do.
+  static bool _looksConfirmed(String body) {
+    final hasVerb = body.contains('debited') ||
+        body.contains('credited') ||
+        body.contains('withdrawn') ||
+        body.contains('spent') ||
+        body.contains('deducted') ||
+        (body.contains('paid') && body.contains(' to ')) ||
+        body.contains('received');
+    final hasAnchor = body.contains('a/c') ||
+        body.contains('acct') ||
+        body.contains('account') ||
+        body.contains('card') ||
+        body.contains('avl bal') ||
+        body.contains('avbl bal') ||
+        body.contains('available bal') ||
+        body.contains('bal:') ||
+        body.contains('upi ref') ||
+        body.contains('txn id') ||
+        body.contains('ref no') ||
+        body.contains('utr');
+    return hasVerb && hasAnchor;
+  }
 
   static bool _isBankSms(String body) {
     final hits = _bankKeywords.where((k) => body.contains(k)).length;

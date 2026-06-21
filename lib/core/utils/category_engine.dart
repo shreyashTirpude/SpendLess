@@ -195,7 +195,7 @@ class CategoryEngine {
       'marriott', 'hilton', 'taj hotel', 'itc hotel', 'airbnb',
       'booking.com', 'expedia', 'cleartrip hotel', 'resort ',
       'hostel ', 'lodging ', 'accommodation', 'holiday ',
-      'travel package',
+      'travel package', 'oyo',
     ],
 
     // ── Personal Care ─────────────────────────────────────────────────────────
@@ -239,7 +239,9 @@ class CategoryEngine {
     String channel = 'UNKNOWN',
     bool isP2P = false,
   }) {
-    final body = '${rawSms.toLowerCase()} ${merchant.toLowerCase()}';
+    // Trailing space so space-suffixed rule tokens (e.g. 'airtel ', 'ola ')
+    // also match a bare merchant name at the end of the string.
+    final body = '${rawSms.toLowerCase()} ${merchant.toLowerCase()} ';
 
     // ── Credits ──────────────────────────────────────────────────────────────
     if (isCredit) {
@@ -263,15 +265,18 @@ class CategoryEngine {
       return 'Loan EMI'; // default for NACH is structured obligation
     }
 
-    // ── P2P transfers ─────────────────────────────────────────────────────────
+    // ── Named keyword categories (high-confidence brand/biller match) ─────────
+    // Runs BEFORE the P2P branch so merchant VPAs like bescom@sbi, zepto@icici,
+    // lic@sbi, groww@icici are categorised by brand, not mis-tagged as a
+    // person-to-person transfer just because the handle suffix looks personal.
+    for (final entry in _rules.entries) {
+      if (_anyMatch(body, entry.value)) return entry.key;
+    }
+
+    // ── P2P transfers (only when no known merchant/biller matched) ────────────
     if (isP2P || (vpa != null && _isPersonalVpaLocal(vpa) && !_isMerchantVpa(vpa))) {
       // Note: cashflow_provider will further split into Friends / Family
       return 'Send Money';
-    }
-
-    // ── Named keyword categories (in priority order) ──────────────────────────
-    for (final entry in _rules.entries) {
-      if (_anyMatch(body, entry.value)) return entry.key;
     }
 
     // ── UPI / transfer signals (fallback) ─────────────────────────────────────
@@ -318,8 +323,21 @@ class CategoryEngine {
     return false;
   }
 
-  static bool _anyMatch(String text, List<String> keywords) =>
-      keywords.any((k) => text.contains(k));
+  /// Keyword match with a guard against substring traps: short, purely
+  /// alphanumeric tokens (≤4 chars like 'emi', 'ctc', 'sip', 'oyo') must match
+  /// on a word boundary so 'emi' doesn't fire inside "pr**emi**um" and 'ctc'
+  /// doesn't fire inside "ir**ctc**". Longer / spaced tokens use fast substring.
+  static bool _anyMatch(String text, List<String> keywords) {
+    for (final k in keywords) {
+      final isShortAlnum = k.length <= 4 && RegExp(r'^[a-z0-9]+$').hasMatch(k);
+      if (isShortAlnum) {
+        if (RegExp('\\b${RegExp.escape(k)}\\b').hasMatch(text)) return true;
+      } else if (text.contains(k)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   // ── Display helpers ────────────────────────────────────────────────────────
 

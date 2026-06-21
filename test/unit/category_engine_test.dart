@@ -33,8 +33,8 @@ void main() {
       expect(CategoryEngine.categorize('Bank Credit', true), 'Income');
     });
 
-    test('Netflix → Entertainment', () {
-      expect(CategoryEngine.categorize('Netflix', false), 'Entertainment');
+    test('Netflix → Subscriptions', () {
+      expect(CategoryEngine.categorize('Netflix', false), 'Subscriptions');
     });
 
     test('Airtel → Bills & Utilities', () {
@@ -101,7 +101,7 @@ void main() {
       const rawSms = 'Rs.200 paid to netflix@hdfcbank via UPI. A/c XXXX9999.';
       expect(
         CategoryEngine.categorizeFromSms(rawSms, 'netflix@hdfcbank', isCredit: false),
-        'Entertainment',
+        'Subscriptions',
       );
     });
   });

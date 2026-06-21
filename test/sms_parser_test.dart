@@ -313,6 +313,41 @@ void main() {
     test('No amount → null', () {
       expect(p('Your account has been debited. UPI transaction completed.'), isNull);
     });
+
+    // ── Loan-offer / promotional spam (regression for the 25-lakh bug) ──────
+    test('Pre-approved loan offer → null', () {
+      expect(
+          p('Congratulations! You are eligible for a pre-approved personal loan of Rs 25,00,000. Apply now -HDFCBK'),
+          isNull);
+    });
+
+    test('"You got a loan of 25 lakh" promo → null', () {
+      expect(p('Dear customer, you got a loan offer of Rs 25 lakh at lowest interest rate. Click here to apply -SBIBNK'),
+          isNull);
+    });
+
+    test('Credit card limit increase offer → null', () {
+      expect(
+          p('Your ICICI card is eligible for a credit limit increase to INR 3,00,000. Apply today! -ICICIB'),
+          isNull);
+    });
+
+    test('Cashback marketing → null', () {
+      expect(p('Flat 50% cashback on your next UPI payment! Offer ends soon. -PAYTMB'),
+          isNull);
+    });
+
+    test('REAL loan EMI debit still parses (not rejected)', () {
+      final r = p('INR 4,200.00 debited from A/c XX4821 for ECS/NACH BAJAJ FINANCE PERSONAL LOAN EMI. Avl Bal: INR 8,000. -HDFCBK');
+      expect(r, isNotNull);
+      expect(r!.amount, 4200.00);
+    });
+
+    test('REAL loan disbursal credit still parses', () {
+      final r = p('INR 5,00,000.00 credited to A/c XX4821 as loan disbursal. Avl Bal: INR 5,12,000. UPI Ref 5123. -HDFCBK');
+      expect(r, isNotNull);
+      expect(r!.amount, 500000.00);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────

@@ -550,6 +550,13 @@ class MerchantNormalizer {
     // Handle VPA input ("zomato.food@hdfcbank")
     if (raw.contains('@')) return _fromVpa(raw);
 
+    // 0. Legal entity alias on the RAW string — before noise stripping, which
+    //    can chop real words (e.g. "JUBILANT FOOD" → "JUBILANT" via city-code re).
+    final rawLower = raw.toLowerCase().trim();
+    for (final entry in _legalEntities.entries) {
+      if (rawLower.contains(entry.key)) return entry.value;
+    }
+
     final cleaned = _stripNoise(raw);
     final lower = cleaned.toLowerCase().trim();
 
