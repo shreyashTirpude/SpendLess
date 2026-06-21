@@ -137,7 +137,7 @@ class _LockedState extends StatelessWidget {
                 ),
                 onPressed: () => context.push('/paywall'),
                 child: const Text(
-                  'Upgrade to Pro — ₹299/mo',
+                  'Go Pro — Free for 7 days',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),

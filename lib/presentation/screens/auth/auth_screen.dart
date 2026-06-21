@@ -5,7 +5,10 @@ import '../../providers/auth_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../services/auth/auth_models.dart';
 import '../../../services/demo_data_service.dart';
+import '../../../services/consent_service.dart';
+import '../../../core/data/consent_agreement.dart';
 import '../../widgets/auth/auth_scaffold.dart';
+import '../../widgets/auth/consent_checkbox.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -22,6 +25,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _loading = false;
   bool _obscure = true;
   bool _mfaRequired = false;
+  bool _consent = ConsentService.hasConsented;
 
   @override
   void dispose() {
@@ -38,6 +42,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _snack('Enter your email and password');
       return;
     }
+    if (!_consent) {
+      _snack('Please accept the Privacy Agreement to continue');
+      return;
+    }
+    await _recordConsent('login');
     setState(() => _loading = true);
 
     final res = await ref.read(authProvider.notifier).login(
@@ -122,7 +131,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 style: TextStyle(color: AppColors.primaryLight, fontSize: 13)),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
+
+        ConsentCheckbox(
+          value: _consent,
+          onChanged: (v) => setState(() => _consent = v),
+        ),
+        const SizedBox(height: 16),
 
         GradientButton(
           label: _mfaRequired ? 'Verify & Sign In' : 'Sign In',
@@ -174,6 +189,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Future<void> _startDemo() async {
+    if (!_consent) {
+      _snack('Please accept the Privacy Agreement to continue');
+      return;
+    }
+    await _recordConsent('demo');
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -185,5 +206,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     if (!mounted) return;
     Navigator.of(context).pop(); // close loader
     context.go('/home');
+  }
+
+  Future<void> _recordConsent(String action) async {
+    if (ConsentService.hasConsented) return;
+    await ConsentService.accept(
+        action: action, agreementHash: ConsentAgreement.hash);
   }
 }

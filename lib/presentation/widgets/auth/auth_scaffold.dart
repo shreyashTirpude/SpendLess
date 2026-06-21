@@ -21,8 +21,14 @@ class AuthScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // When the keyboard is up, collapse the hero and tuck the footer into the
+    // scroll area so the primary button is reachable WITHOUT manual scrolling.
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+
     return Scaffold(
       backgroundColor: context.bgColor,
+      // Let the scroll view handle the keyboard inset (no body resize jump).
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // Ambient gradient glow behind the hero
@@ -43,13 +49,15 @@ class AuthScaffold extends StatelessWidget {
           SafeArea(
             child: Column(
               children: [
-                // ── Hero ──────────────────────────────────────────────────
+                // ── Top bar (back) ────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
                   child: Row(
                     children: [
                       if (showBack)
                         IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           icon: Icon(Icons.arrow_back_ios_new_rounded,
                               size: 18, color: context.textPrimary),
                           onPressed: () => Navigator.of(context).maybePop(),
@@ -58,14 +66,28 @@ class AuthScaffold extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                _Logo(),
-                const SizedBox(height: 24),
 
-                // ── Body card ─────────────────────────────────────────────
+                // ── Hero (collapses when typing) ──────────────────────────
+                AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 220),
+                  crossFadeState: keyboardOpen
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  firstChild: Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      _Logo(),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                  secondChild: const SizedBox(height: 8),
+                ),
+
+                // ── Body (scrolls; footer rides along so nothing overlaps) ─
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                    padding: EdgeInsets.fromLTRB(
+                        24, 0, 24, 24 + MediaQuery.of(context).viewInsets.bottom),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -79,18 +101,16 @@ class AuthScaffold extends StatelessWidget {
                         Text(subtitle,
                             style: TextStyle(
                                 color: context.textSecondary, fontSize: 14)),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         ...children,
+                        if (footer != null) ...[
+                          const SizedBox(height: 24),
+                          footer!,
+                        ],
                       ],
                     ),
                   ),
                 ),
-
-                if (footer != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-                    child: footer!,
-                  ),
               ],
             ),
           ),

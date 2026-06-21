@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../services/auth/auth_models.dart';
+import '../../../services/consent_service.dart';
+import '../../../core/data/consent_agreement.dart';
 import '../../widgets/auth/auth_scaffold.dart';
+import '../../widgets/auth/consent_checkbox.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -20,6 +23,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   bool _loading = false;
   bool _obscure = true;
+  bool _consent = ConsentService.hasConsented;
   PasswordStrength _strength = PasswordStrength.evaluate('');
 
   @override
@@ -34,6 +38,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (_name.text.trim().isEmpty) return _snack('Enter your name');
     if (!_strength.isAcceptable) {
       return _snack('Choose a stronger password');
+    }
+    if (!_consent) {
+      return _snack('Please accept the Privacy Agreement to continue');
+    }
+    if (!ConsentService.hasConsented) {
+      await ConsentService.accept(
+          action: 'signup', agreementHash: ConsentAgreement.hash);
     }
     setState(() => _loading = true);
     final res = await ref.read(authProvider.notifier).signUp(
@@ -138,7 +149,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         ),
         const SizedBox(height: 12),
         _StrengthMeter(strength: _strength),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
+        ConsentCheckbox(
+          value: _consent,
+          onChanged: (v) => setState(() => _consent = v),
+        ),
+        const SizedBox(height: 22),
         GradientButton(
           label: 'Create Account',
           loading: _loading,

@@ -23,19 +23,27 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends ConsumerState<MainShell> {
+class _MainShellState extends ConsumerState<MainShell>
+    with WidgetsBindingObserver {
   StreamSubscription? _hiveWatcher;
+  Timer? _periodicScan;
+
+  /// How often to re-scan the SMS inbox while the app is in the foreground.
+  /// 15 min balances freshness against battery; new SMS also arrive instantly
+  /// via the real-time listener, so this is just a safety-net catch-up.
+  static const _scanInterval = Duration(minutes: 15);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await SmsScannerService.startListening();
-      final added = await SmsScannerService.scanInbox();
-      if (added > 0 && mounted) {
-        ref.read(transactionCacheProvider.notifier).bump();
-      }
+      await _rescan();
     });
+
+    // Periodic catch-up scan (foreground only).
+    _periodicScan = Timer.periodic(_scanInterval, (_) => _rescan());
 
     // Auto-refresh UI whenever Hive transactions box changes (real-time SMS)
     _hiveWatcher = HiveService.transactions.watch().listen((_) {
@@ -46,7 +54,22 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Catch up on any SMS that arrived while the app was backgrounded.
+    if (state == AppLifecycleState.resumed) _rescan();
+  }
+
+  Future<void> _rescan() async {
+    final added = await SmsScannerService.scanInbox();
+    if (added > 0 && mounted) {
+      ref.read(transactionCacheProvider.notifier).bump();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _periodicScan?.cancel();
     _hiveWatcher?.cancel();
     super.dispose();
   }
@@ -108,10 +131,58 @@ class _MainShellState extends ConsumerState<MainShell> {
                 },
               ),
             ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.logout_rounded, size: 18),
+                label: const Text('Exit Demo Mode'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => _exitDemo(context),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _exitDemo(BuildContext sheetContext) async {
+    Navigator.pop(sheetContext); // close the sheet
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBgElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Exit demo mode?',
+            style: TextStyle(color: context.textPrimary)),
+        content: Text(
+          'This clears all sample data and returns to the login screen.',
+          style: TextStyle(color: context.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: context.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Exit'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    await DemoDataService.reset();
+    if (mounted) ref.read(transactionCacheProvider.notifier).bump();
+    if (mounted) context.go('/auth');
   }
 
   int _selectedIndex(BuildContext context) {
