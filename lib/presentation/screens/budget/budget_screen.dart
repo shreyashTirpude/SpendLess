@@ -189,10 +189,95 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
     );
   }
 
+  Future<void> _showGlobalBudgetDialog(double current) async {
+    final controller = TextEditingController(
+        text: current > 0 ? current.toStringAsFixed(0) : '');
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          decoration: BoxDecoration(
+            color: context.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: context.cardBorderColor,
+                        borderRadius: BorderRadius.circular(2))),
+              ),
+              const SizedBox(height: 20),
+              Text('Overall Monthly Budget',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 4),
+              Text(
+                'One limit for ALL spending. Tracked automatically against every '
+                'transaction we scan this month.',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: context.textMuted),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                autofocus: true,
+                decoration: const InputDecoration(
+                    prefixText: '₹ ', hintText: '30000'),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  if (current > 0)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          await ref.read(globalBudgetProvider.notifier).clear();
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        },
+                        child: const Text('Remove'),
+                      ),
+                    ),
+                  if (current > 0) const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final amt = double.tryParse(controller.text) ?? 0;
+                        if (amt <= 0) return;
+                        await ref
+                            .read(globalBudgetProvider.notifier)
+                            .setLimit(amt);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final allCatsAsync = ref.watch(allCategoriesSpendingProvider);
     final overBudgetAsync = ref.watch(overBudgetCategoriesProvider);
+    final globalProgress = ref.watch(globalBudgetProgressProvider);
 
     return Scaffold(
       backgroundColor: context.bgColor,
@@ -249,6 +334,17 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                   return ListView(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                     children: [
+                      // Overall ("for all") budget card
+                      globalProgress.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                        data: (gp) => _GlobalBudgetCard(
+                          spent: gp.$1,
+                          limit: gp.$2,
+                          onTap: () => _showGlobalBudgetDialog(gp.$2),
+                        ),
+                      ),
+
                       // Over budget banner
                       overBudgetAsync.when(
                         loading: () => const SizedBox.shrink(),
@@ -500,4 +596,118 @@ String _fmt(double amount) {
   if (amount >= 100000) return '${(amount / 100000).toStringAsFixed(1)}L';
   if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
   return amount.toStringAsFixed(0);
+}
+
+// ── Overall ("for all") budget card ─────────────────────────────────────────────
+
+class _GlobalBudgetCard extends StatelessWidget {
+  final double spent;
+  final double limit;
+  final VoidCallback onTap;
+  const _GlobalBudgetCard({
+    required this.spent,
+    required this.limit,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLimit = limit > 0;
+    final percent = hasLimit ? (spent / limit).clamp(0.0, 1.0) : 0.0;
+    final isOver = hasLimit && spent > limit;
+    final remaining = hasLimit ? (limit - spent).clamp(0.0, double.infinity) : 0.0;
+    final barColor = isOver ? AppColors.error : AppColors.primary;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.gradientStart.withValues(alpha: 0.18),
+              AppColors.gradientMid.withValues(alpha: 0.06),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: isOver
+                  ? AppColors.error.withValues(alpha: 0.45)
+                  : AppColors.primary.withValues(alpha: 0.30)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('🎯', style: TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                Text('Overall Budget',
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const Spacer(),
+                Icon(
+                    hasLimit
+                        ? Icons.edit_rounded
+                        : Icons.add_circle_outline_rounded,
+                    size: 16,
+                    color: context.textMuted),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (!hasLimit) ...[
+              Text('Set one limit for all spending',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: context.textPrimary)),
+              const SizedBox(height: 4),
+              Text('Auto-tracked against everything you spend this month',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: context.textMuted)),
+            ] else ...[
+              Text('₹${_fmt(spent)} of ₹${_fmt(limit)}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: context.textPrimary,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: percent,
+                  minHeight: 8,
+                  backgroundColor: context.cardBorderColor,
+                  valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text('${(percent * 100).toStringAsFixed(0)}% used',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isOver ? AppColors.error : context.textMuted,
+                          fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  Text(
+                      isOver
+                          ? '₹${_fmt(spent - limit)} over'
+                          : '₹${_fmt(remaining)} left',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isOver ? AppColors.error : AppColors.success,
+                          fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }

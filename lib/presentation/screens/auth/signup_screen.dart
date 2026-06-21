@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../services/auth/auth_models.dart';
 import '../../../services/consent_service.dart';
 import '../../../core/data/consent_agreement.dart';
+import '../../providers/cache_provider.dart';
 import '../../widgets/auth/auth_scaffold.dart';
 import '../../widgets/auth/consent_checkbox.dart';
 
@@ -56,6 +57,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     setState(() => _loading = false);
 
     if (res.ok) {
+      ref.read(transactionCacheProvider.notifier).bump(); // reflect clean state
       // Offer MFA setup right after signup
       final enable = await _askEnableMfa();
       if (!mounted) return;

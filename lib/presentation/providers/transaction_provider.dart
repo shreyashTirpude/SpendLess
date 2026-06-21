@@ -22,6 +22,55 @@ final transactionsByMonthProvider = FutureProvider.family<List<Transaction>, (in
   return repo.getByMonth(args.$1, args.$2);
 });
 
+// ── People summary: per-person money sent vs received (all-time) ────────────────
+//
+// Groups person-to-person transactions (Send Money / Friends / Family /
+// Income Transfer) by the person's name so the user can see, per contact, how
+// much they've sent and received.
+
+typedef PersonSummary = ({
+  String name,
+  double sent,
+  double received,
+  int count,
+});
+
+final peopleSummaryProvider = FutureProvider<List<PersonSummary>>((ref) async {
+  ref.watch(transactionCacheProvider);
+  const p2pCategories = {
+    'Send Money', 'Friends', 'Family', 'Income Transfer'
+  };
+  final sent = <String, double>{};
+  final received = <String, double>{};
+  final count = <String, int>{};
+
+  for (final t in HiveService.transactions.values) {
+    if (t.isIgnored) continue;
+    if (!p2pCategories.contains(t.category)) continue;
+    final name = t.merchant.trim();
+    if (name.isEmpty) continue;
+    if (t.isCredit) {
+      received[name] = (received[name] ?? 0) + t.amount;
+    } else {
+      sent[name] = (sent[name] ?? 0) + t.amount;
+    }
+    count[name] = (count[name] ?? 0) + 1;
+  }
+
+  final names = {...sent.keys, ...received.keys};
+  final list = names
+      .map((n) => (
+            name: n,
+            sent: sent[n] ?? 0,
+            received: received[n] ?? 0,
+            count: count[n] ?? 0,
+          ))
+      .toList()
+    ..sort((a, b) =>
+        (b.sent + b.received).compareTo(a.sent + a.received));
+  return list;
+});
+
 final categoryTotalsProvider = FutureProvider<Map<String, double>>((ref) async {
   final txns = await ref.watch(transactionsProvider.future);
   final totals = <String, double>{};

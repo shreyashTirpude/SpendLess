@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/models/subscription_tier.dart';
 import '../../providers/subscription_provider.dart';
@@ -90,20 +91,71 @@ class PaywallScreen extends ConsumerWidget {
     );
     if (upi == null || upi.isEmpty) return;
 
-    // Simulated payment-app redirect / mandate setup.
-    if (context.mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary)),
-      );
-    }
-    await Future.delayed(const Duration(milliseconds: 1400));
-    await ref.read(subscriptionTierProvider.notifier).startProTrial(upi);
+    // Step 1: send the user to their UPI app to AUTHORIZE an autopay mandate.
+    // (No money moves now — a mandate just pre-authorizes the future charge.)
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBgElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Set up AutoPay',
+            style: TextStyle(color: AppColors.textPrimary)),
+        content: Text(
+          'You\'ll be taken to your UPI app (e.g. Google Pay) to approve an '
+          'AutoPay mandate for $upi.\n\nNothing is charged now — ₹99/month '
+          'starts only after your 7-day free trial, and you can cancel anytime.',
+          style: TextStyle(color: context.textSecondary, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: TextStyle(color: context.textMuted))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Open UPI app'),
+          ),
+        ],
+      ),
+    );
+    if (go != true || !context.mounted) return;
 
+    // Step 2: attempt to open a UPI app for mandate authorization. We do NOT
+    // collect money — this is a setup-mandate intent. If no UPI app handles it
+    // we continue with the in-app authorization step.
+    await _openUpiMandate(upi);
+
+    // Step 3: confirm the mandate was enabled.
     if (!context.mounted) return;
-    Navigator.of(context).pop(); // close loader
+    final approved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBgElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Confirm AutoPay',
+            style: TextStyle(color: AppColors.textPrimary)),
+        content: Text(
+          'Did you approve the AutoPay mandate in your UPI app? '
+          'Confirm to start your free trial.',
+          style: TextStyle(color: context.textSecondary, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Not yet', style: TextStyle(color: context.textMuted))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('AutoPay enabled ✓'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !context.mounted) return;
+
+    await ref.read(subscriptionTierProvider.notifier).startProTrial(upi);
+    if (!context.mounted) return;
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -112,8 +164,9 @@ class PaywallScreen extends ConsumerWidget {
         title: const Text('🎉  You\'re on Pro!',
             style: TextStyle(color: AppColors.textPrimary)),
         content: Text(
-          'Your 7-day free trial is active. We\'ll auto-charge ₹99 to $upi after '
-          'the trial — cancel anytime before then and pay nothing.',
+          'Your 7-day free trial is active and AutoPay is set up for $upi. '
+          'No money has been deducted. ₹99 will be auto-debited only after the '
+          'trial ends — cancel anytime before then and pay nothing.',
           style: TextStyle(color: context.textSecondary, height: 1.5),
         ),
         actions: [
@@ -126,6 +179,21 @@ class PaywallScreen extends ConsumerWidget {
       ),
     );
     if (context.mounted) context.pop();
+  }
+
+  /// Opens a UPI app to authorize an autopay mandate. Best-effort: if no app
+  /// handles the intent (or on desktop/web), we silently fall through to the
+  /// in-app confirmation. No funds are transferred.
+  Future<void> _openUpiMandate(String upi) async {
+    try {
+      final uri = Uri.parse(
+          'upi://mandate?pa=$upi&pn=SpendLens&am=99&cu=INR&tn=SpendLens%20Pro');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      // No UPI app / unsupported — continue with in-app confirmation.
+    }
   }
 
   Future<void> _confirmCancel(BuildContext context, WidgetRef ref) async {

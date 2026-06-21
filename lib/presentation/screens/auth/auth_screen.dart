@@ -67,6 +67,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     switch (res.status) {
       case AuthStatus.ok:
         await _recordConsent('login'); // record only on a successful sign-in
+        ref.read(transactionCacheProvider.notifier).bump(); // reflect clean state
         if (!mounted) return;
         context.go('/home');
       case AuthStatus.mfaRequired:

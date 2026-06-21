@@ -32,6 +32,170 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     super.dispose();
   }
 
+  void _showPeopleSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.92,
+        builder: (ctx, controller) {
+          final peopleAsync = ref.watch(peopleSummaryProvider);
+          return Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: context.cardBorderColor,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    const Text('👥', style: TextStyle(fontSize: 20)),
+                    const SizedBox(width: 10),
+                    Text('People',
+                        style: TextStyle(
+                            color: context.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700)),
+                    const Spacer(),
+                    Text('sent / received',
+                        style: TextStyle(
+                            color: context.textMuted, fontSize: 12)),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: peopleAsync.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (_, __) => const Center(child: Text('—')),
+                  data: (people) {
+                    if (people.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Text(
+                            'No person-to-person transfers yet.\nUPI payments to '
+                            'friends & family will show up here.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: context.textSecondary, height: 1.5),
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      controller: controller,
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      itemCount: people.length,
+                      itemBuilder: (_, i) {
+                        final p = people[i];
+                        final net = p.received - p.sent;
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _searchController.text = p.name;
+                            setState(() => _searchQuery = p.name);
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: context.cardColor,
+                              borderRadius: BorderRadius.circular(14),
+                              border:
+                                  Border.all(color: context.cardBorderColor),
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor:
+                                      AppColors.primary.withValues(alpha: 0.15),
+                                  child: Text(
+                                    p.name.isNotEmpty
+                                        ? p.name[0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(p.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                              color: context.textPrimary,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600)),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        '↑ ₹${_fmtAmt(p.sent)}  ·  ↓ ₹${_fmtAmt(p.received)}  ·  ${p.count} txns',
+                                        style: TextStyle(
+                                            color: context.textSecondary,
+                                            fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      net >= 0
+                                          ? '+₹${_fmtAmt(net)}'
+                                          : '-₹${_fmtAmt(-net)}',
+                                      style: TextStyle(
+                                          color: net >= 0
+                                              ? AppColors.success
+                                              : AppColors.error,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14),
+                                    ),
+                                    Text('net',
+                                        style: TextStyle(
+                                            color: context.textMuted,
+                                            fontSize: 10)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  static String _fmtAmt(double a) {
+    if (a >= 100000) return '${(a / 100000).toStringAsFixed(1)}L';
+    if (a >= 1000) return '${(a / 1000).toStringAsFixed(1)}K';
+    return a.toStringAsFixed(0);
+  }
+
   List<Transaction> _applyFilters(List<Transaction> txns) {
     return txns.where((t) {
       if (t.isIgnored) return false;
@@ -414,25 +578,47 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               ),
             ),
 
-            // Search
+            // Search + People
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (v) => setState(() => _searchQuery = v),
-                decoration: InputDecoration(
-                  hintText: 'Search merchants or categories…',
-                  prefixIcon: Icon(Icons.search_rounded, color: context.textMuted, size: 20),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(Icons.clear_rounded, color: context.textMuted, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                        )
-                      : null,
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (v) => setState(() => _searchQuery = v),
+                      decoration: InputDecoration(
+                        hintText: 'Search people, merchants or categories…',
+                        prefixIcon: Icon(Icons.search_rounded, color: context.textMuted, size: 20),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear_rounded, color: context.textMuted, size: 18),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // People view — net sent/received per person
+                  GestureDetector(
+                    onTap: _showPeopleSheet,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: context.cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: context.cardBorderColor),
+                      ),
+                      child: Icon(Icons.people_alt_rounded,
+                          color: AppColors.primary, size: 22),
+                    ),
+                  ),
+                ],
               ),
             ),
 

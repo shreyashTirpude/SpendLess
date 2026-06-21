@@ -20,11 +20,53 @@ final budgetProgressProvider = FutureProvider.family<(double, double), String>((
     ),
   );
 
+  // Spent THIS MONTH only (budgets are monthly). Previously summed all-time,
+  // which inflated "spent" and triggered false over-budget warnings.
+  final now = DateTime.now();
   final transactions = HiveService.transactions.values
-      .where((t) => t.category == category && !t.isCredit && !t.isIgnored)
+      .where((t) =>
+          t.category == category &&
+          !t.isCredit &&
+          !t.isIgnored &&
+          t.transactionDate.year == now.year &&
+          t.transactionDate.month == now.month)
       .fold(0.0, (sum, t) => sum + t.amount);
 
   return (transactions, budget.monthlyLimit);
+});
+
+// ── Global ("for all") monthly budget ──────────────────────────────────────────
+//
+// An optional single overall limit. Spent = total expenses scanned this month.
+// Stored in settings so it persists independent of per-category budgets.
+
+class GlobalBudgetNotifier extends StateNotifier<double> {
+  GlobalBudgetNotifier()
+      : super((HiveService.settings.get('globalMonthlyBudget',
+                defaultValue: 0.0) as num)
+            .toDouble());
+
+  Future<void> setLimit(double amount) async {
+    await HiveService.settings.put('globalMonthlyBudget', amount);
+    state = amount;
+  }
+
+  Future<void> clear() async {
+    await HiveService.settings.put('globalMonthlyBudget', 0.0);
+    state = 0.0;
+  }
+}
+
+final globalBudgetProvider =
+    StateNotifierProvider<GlobalBudgetNotifier, double>(
+        (ref) => GlobalBudgetNotifier());
+
+/// (spent this month, global limit). Spent auto-syncs from scanned transactions.
+final globalBudgetProgressProvider =
+    FutureProvider<(double, double)>((ref) async {
+  final limit = ref.watch(globalBudgetProvider);
+  final totalSpent = await ref.watch(totalSpentProvider.future);
+  return (totalSpent, limit);
 });
 
 final overBudgetCategoriesProvider = FutureProvider<List<String>>((ref) async {

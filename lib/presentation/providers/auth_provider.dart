@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/auth/auth_models.dart';
+import '../../services/demo_data_service.dart';
 
 /// Exposes the current authenticated account and auth operations.
 /// Backed by [AuthService] (local enterprise auth, Supabase when configured).
@@ -19,6 +20,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthAccount?>> {
     state = const AsyncValue.loading();
     final res = await AuthService.login(
         email: email, password: password, mfaCode: mfaCode);
+    // Real login → ensure no demo data bleeds into this account.
+    if (res.ok) await DemoDataService.clearForRealAccount();
     state = AsyncValue.data(res.ok ? res.account : AuthService.currentUser);
     return res;
   }
@@ -27,6 +30,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthAccount?>> {
     state = const AsyncValue.loading();
     final res = await AuthService.signUp(
         name: name, email: email, password: password);
+    // Fresh account must start clean — wipe any demo sample data.
+    if (res.ok) await DemoDataService.clearForRealAccount();
     state = AsyncValue.data(res.ok ? res.account : AuthService.currentUser);
     return res;
   }

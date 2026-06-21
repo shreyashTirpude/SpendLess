@@ -89,6 +89,31 @@ class DemoDataService {
     debugPrint('[DemoDataService] Reset — will re-seed on next launch');
   }
 
+  /// Called when a user authenticates to a REAL account. If they had been in a
+  /// demo session, wipe all sample data + demo flags so the real account starts
+  /// completely clean (no mixed dummy transactions/budgets/Pro tier). No-op for
+  /// genuine returning users (demo_session is false), so their data is safe.
+  static Future<void> clearForRealAccount() async {
+    if (!isActive) return;
+    final s = HiveService.settings;
+    await HiveService.transactions.clear();
+    await HiveService.budgets.clear();
+    await HiveService.user.clear();
+    await s.delete('demo_session');
+    await s.delete('demo_version');
+    // Reset demo-granted Pro + billing + festival budgets to a clean slate.
+    await s.put('subscriptionTier', 'free');
+    await s.put('tierExpiry', '');
+    await s.put('pro_auto_renew', false);
+    await s.put('pro_first_charge', '');
+    await s.put('pro_trial_start', '');
+    await s.put('pro_upi_id', '');
+    for (final k in s.keys.where((k) => k.toString().startsWith('festivalBudget_')).toList()) {
+      await s.delete(k);
+    }
+    debugPrint('[DemoDataService] Cleared demo data for real account');
+  }
+
   // ── Settings ───────────────────────────────────────────────────────────────
 
   static Future<void> _seedSettings() async {
