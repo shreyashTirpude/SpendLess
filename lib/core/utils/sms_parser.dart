@@ -168,6 +168,17 @@ class SmsParser {
     // Skip promotional / loan-offer spam (unless it's a confirmed transaction)
     if (_isPromotional(body) && !_looksConfirmed(body)) return null;
 
+    // Skip non-transaction noise: due/EMI reminders, payment requests, future
+    // mandate notices, balance enquiries, statements, delivery/order updates,
+    // recharge offers, etc. — these often carry an amount but are NOT money
+    // actually moving in/out of the account.
+    if (_isNonTransaction(body)) return null;
+
+    // Hard requirement: a real transaction must be a CONFIRMED settlement
+    // (a past-tense debit/credit/spend verb applied to an account/card with a
+    // balance or reference). This is the main guard against false positives.
+    if (!_looksConfirmed(body)) return null;
+
     // Skip failed transactions
     if (_isFailed(body)) return null;
 
@@ -222,6 +233,65 @@ class SmsParser {
   static bool _isPromotional(String body) =>
       _promotionalKeywords.any((k) => body.contains(k));
 
+  /// Detects messages that carry an amount + bank words but are NOT a completed
+  /// transaction — the biggest source of false-positive entries. Covers:
+  /// reminders/dues, UPI collect/payment requests, future-tense mandate notices,
+  /// balance enquiries, statements, delivery/order updates, and recharge offers.
+  static bool _isNonTransaction(String body) {
+    // Hard rejects — these phrasings never describe money leaving/entering now.
+    const hardReject = [
+      // due / EMI / bill reminders
+      'is due', 'due on', 'due date', 'due by', 'payment due', 'bill due',
+      'amount due', 'is overdue', 'overdue', 'kindly pay', 'please pay',
+      'pay now to', 'pay by ', 'last date to pay', 'last day to pay',
+      'outstanding amount', 'outstanding balance', 'minimum amount due',
+      'total amount due', 'min amt due', 'min amount due', 'emi is due',
+      'emi due', 'payment is pending', 'pending payment', 'pay your',
+      // UPI collect / payment requests (you haven't paid yet)
+      'has requested', 'is requesting', 'requesting rs', 'requests rs',
+      'collect request', 'payment request', 'requested money',
+      'has sent you a request', 'wants to receive', 'requested rs',
+      'approve the request', 'to pay this collect',
+      // statements / balance enquiry / info-only
+      // (NOTE: plain "available balance is" is NOT listed — real debit/credit
+      //  SMS use that phrase too; pure balance enquiries are caught by the
+      //  _looksConfirmed gate since they have no settlement verb.)
+      'statement is generated', 'statement generated', 'e-statement',
+      'mini statement', 'balance enquiry',
+      // delivery / orders / logistics
+      'out for delivery', 'has been delivered', 'will be delivered',
+      'order shipped', 'has been shipped', 'order placed', 'order confirmed',
+      'order has been', 'tracking id', 'track your order', 'is dispatched',
+      'has been dispatched', 'awb', 'shipment',
+      // recharge / plan / telecom offers
+      'recharge now', 'recharge with', 'plan expires', 'validity expires',
+      'pack expires', 'data balance', 'talktime', 'best recharge', 'recharge to',
+      // generic marketing / info
+      'reward points', 'thank you for shopping', 'rate your', 'feedback',
+    ];
+    if (hardReject.any((k) => body.contains(k))) return true;
+
+    // Future-tense debit/credit (mandate / autopay notice) — reject UNLESS a
+    // real past-tense settlement is also present in the same SMS.
+    const future = [
+      'will be debited', 'will be deducted', 'will be charged',
+      'will be credited', 'to be debited', 'shall be debited',
+      'scheduled on', 'auto-debit on', 'autopay on', 'will auto-debit',
+    ];
+    // Past markers must NOT be substrings of the future phrases above
+    // (e.g. "will be debited from" contains "debited from"), so we use only
+    // unambiguous completed-action forms here.
+    const past = [
+      'has been debited', 'was debited', 'has been credited', 'was credited',
+      'spent at', 'spent on', 'withdrawn', 'sent to', 'paid to',
+    ];
+    if (future.any((k) => body.contains(k)) &&
+        !past.any((k) => body.contains(k))) {
+      return true;
+    }
+    return false;
+  }
+
   /// A genuine transaction confirmation: a settlement verb applied to an
   /// account/card with a balance or reference. Loan/credit *offers* never have
   /// this; real loan-EMI debits and disbursal credits do.
@@ -231,6 +301,7 @@ class SmsParser {
         body.contains('withdrawn') ||
         body.contains('spent') ||
         body.contains('deducted') ||
+        body.contains('sent to') || // UPI P2P send
         (body.contains('paid') && body.contains(' to ')) ||
         body.contains('received');
     final hasAnchor = body.contains('a/c') ||

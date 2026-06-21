@@ -27,6 +27,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _obscure = true;
   bool _mfaRequired = false;
   bool _consent = ConsentService.hasConsented;
+  String? _error;
 
   @override
   void dispose() {
@@ -39,22 +40,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Future<void> _submit() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    if (email.isEmpty || password.isEmpty) {
-      _snack('Enter your email and password');
-      return;
+    setState(() => _error = null);
+
+    // Field-level validation with specific messages.
+    if (email.isEmpty) return _fail('Please enter your email address');
+    if (!RegExp(r'^[\w.\-+]+@[\w\-]+\.[\w\-.]+$').hasMatch(email)) {
+      return _fail('That doesn\'t look like a valid email');
+    }
+    if (password.isEmpty) return _fail('Please enter your password');
+    if (_mfaRequired && _mfaController.text.trim().length != 6) {
+      return _fail('Enter the 6-digit code from your authenticator app');
     }
     if (!_consent) {
-      _snack('Please accept the Privacy Agreement to continue');
-      return;
+      return _fail('Please accept the Privacy Agreement to continue');
     }
-    setState(() => _loading = true);
 
+    setState(() => _loading = true);
     final res = await ref.read(authProvider.notifier).login(
           email,
           password,
           mfaCode: _mfaRequired ? _mfaController.text.trim() : null,
         );
-
     if (!mounted) return;
     setState(() => _loading = false);
 
@@ -64,13 +70,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         if (!mounted) return;
         context.go('/home');
       case AuthStatus.mfaRequired:
-        setState(() => _mfaRequired = true);
-        _snack('Enter your 6-digit authenticator code');
+        setState(() {
+          _mfaRequired = true;
+          _error = null;
+        });
+        _snack('Two-factor enabled — enter your authenticator code');
       case AuthStatus.mfaInvalid:
-        _snack('Invalid authenticator code');
+        _fail('Incorrect authenticator code. Check the 6 digits and try again.');
+      case AuthStatus.invalidCredentials:
+      case AuthStatus.userNotFound:
+        _fail('Incorrect email or password.');
+      case AuthStatus.rateLimited:
+        _fail(res.message ?? 'Too many attempts. Please try again later.');
+      case AuthStatus.networkError:
+        _fail('Network error — check your connection and try again.');
       default:
-        _snack(res.message ?? 'Login failed');
+        _fail(res.message ?? 'Sign-in failed. Please try again.');
     }
+  }
+
+  void _fail(String msg) {
+    if (mounted) setState(() => _error = msg);
   }
 
   void _snack(String msg) {
@@ -134,6 +154,32 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ),
         ),
         const SizedBox(height: 4),
+
+        // Inline error banner — clear, specific feedback for every failure case.
+        if (_error != null) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    color: AppColors.error, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(_error!,
+                      style: const TextStyle(
+                          color: AppColors.error, fontSize: 13, height: 1.3)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
 
         ConsentCheckbox(
           value: _consent,

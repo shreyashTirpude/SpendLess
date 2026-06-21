@@ -10,6 +10,7 @@ import '../../../services/sms_scanner_service.dart';
 import '../../../services/demo_data_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../core/security/integrity_service.dart';
+import '../../../core/utils/contact_classifier.dart';
 import '../../providers/cache_provider.dart';
 
 bool get _isDemoMode =>
@@ -49,6 +50,7 @@ class _MainShellState extends ConsumerState<MainShell>
       }
       await SmsScannerService.startListening();
       await _rescan();
+      await _syncContacts();
       _warnIfCompromised();
     });
 
@@ -72,6 +74,17 @@ class _MainShellState extends ConsumerState<MainShell>
   Future<void> _rescan() async {
     final added = await SmsScannerService.scanInbox();
     if (added > 0 && mounted) {
+      ref.read(transactionCacheProvider.notifier).bump();
+    }
+  }
+
+  /// Load device contacts (Android) so transfers are accurately split into
+  /// Friends / Family. Permission + errors are handled inside the classifier;
+  /// a successful load refreshes the cashflow view.
+  Future<void> _syncContacts() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    await ContactClassifier().initialize();
+    if (ContactClassifier().isLoaded && mounted) {
       ref.read(transactionCacheProvider.notifier).bump();
     }
   }

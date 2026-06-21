@@ -355,6 +355,66 @@ void main() {
       expect(r!.amount, 500.00);
       expect(r.isCredit, true);
     });
+
+    // ── Non-transaction "useless" messages → must be null (no false positives)
+    test('Credit-card bill due reminder → null', () {
+      expect(p('Your HDFC Credit Card bill of Rs.12,500.00 is due on 25-Jun-26. Pay now to avoid charges. -HDFCBK'),
+          isNull);
+    });
+
+    test('EMI due reminder → null', () {
+      expect(p('Reminder: Your EMI of Rs.4,200.00 is due on 05-Jul-26 for loan a/c XX99. -HDFCBK'),
+          isNull);
+    });
+
+    test('UPI collect / payment request → null', () {
+      expect(p('Rahul has requested Rs.500.00 via UPI. Approve the request in your app. -AXISBK'),
+          isNull);
+    });
+
+    test('Future-tense SIP mandate notice → null', () {
+      expect(p('Rs.5,000.00 will be debited from A/c XX4821 on 05-Jul-26 towards SIP via e-mandate. -HDFCBK'),
+          isNull);
+    });
+
+    test('Balance enquiry → null', () {
+      expect(p('Your available balance is Rs.18,320.50 in A/c XX4821 as on 22-Jun-26. -HDFCBK'),
+          isNull);
+    });
+
+    test('Statement generated → null', () {
+      expect(p('Your monthly e-statement is generated for A/c XX4821. Total amount due Rs.12,500. -HDFCBK'),
+          isNull);
+    });
+
+    test('Delivery / order update → null', () {
+      expect(p('Your order worth Rs.2,499 is out for delivery. Track your order now. -AMAZON'),
+          isNull);
+    });
+
+    test('Recharge offer → null', () {
+      expect(p('Your plan expires today! Recharge now with Rs.299 for unlimited data. -JIO'),
+          isNull);
+    });
+
+    test('Minimum amount due reminder → null', () {
+      expect(p('ICICI Card XX5678: Total amount due Rs.15,000, minimum amount due Rs.750, due date 25-Jun. -ICICIB'),
+          isNull);
+    });
+
+    // ── Real txns that LOOK similar must STILL parse ───────────────────────
+    test('Real EMI debit (past tense) still parses despite future EMI mention', () {
+      final r = p('Rs.4,200.00 has been debited from A/c XX4821 for EMI. Next EMI will be debited on 05-Jul-26. Avl Bal Rs.8,000. -HDFCBK');
+      expect(r, isNotNull);
+      expect(r!.amount, 4200.00);
+      expect(r.isCredit, false);
+    });
+
+    test('Real debit with "available balance is" phrasing still parses', () {
+      final r = p('INR 750.00 debited from A/c XX4821 via UPI to swiggy@icici. Your available balance is INR 9,250.00. -HDFCBK');
+      expect(r, isNotNull);
+      expect(r!.amount, 750.00);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
