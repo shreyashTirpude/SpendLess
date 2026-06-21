@@ -49,14 +49,23 @@ class Totp {
 
   /// Verify a user-entered code against the secret, allowing ±1 time step.
   static bool verify(String secret, String code,
+          {int digits = 6, int period = 30, int window = 1}) =>
+      matchedStep(secret, code,
+          digits: digits, period: period, window: window) !=
+      null;
+
+  /// Like [verify] but returns the time-step that matched (or null). Callers
+  /// persist the last accepted step to block replay of the same code within
+  /// its validity window.
+  static int? matchedStep(String secret, String code,
       {int digits = 6, int period = 30, int window = 1}) {
     final clean = code.replaceAll(RegExp(r'\s'), '');
-    if (clean.length != digits) return false;
+    if (clean.length != digits) return null;
     final step = DateTime.now().millisecondsSinceEpoch ~/ 1000 ~/ period;
     for (var i = -window; i <= window; i++) {
-      if (_hotp(secret, step + i, digits: digits) == clean) return true;
+      if (_hotp(secret, step + i, digits: digits) == clean) return step + i;
     }
-    return false;
+    return null;
   }
 
   // ── Internals ────────────────────────────────────────────────────────────────

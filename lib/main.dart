@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, kReleaseMode, defaultTargetPlatform, TargetPlatform, debugPrint;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -16,6 +17,12 @@ bool get _isAndroid =>
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // SECURITY: silence all debug logging in release builds so transaction
+  // amounts, merchants, SMS content and tokens never reach logcat.
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
 
   try {
     await dotenv.load(fileName: '.env');

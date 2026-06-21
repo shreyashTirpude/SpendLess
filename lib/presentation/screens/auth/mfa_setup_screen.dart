@@ -59,6 +59,17 @@ class _MfaSetupScreenState extends ConsumerState<MfaSetupScreen> {
     );
   }
 
+  /// Wipe the clipboard after 60s, but only if it still holds the secret —
+  /// avoids clobbering whatever the user copied afterwards.
+  void _autoClearClipboard(String copied) {
+    Future.delayed(const Duration(seconds: 60), () async {
+      final current = await Clipboard.getData(Clipboard.kTextPlain);
+      if (current?.text == copied) {
+        await Clipboard.setData(const ClipboardData(text: ''));
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_recoveryCodes != null) return _recoveryView();
@@ -114,7 +125,8 @@ class _MfaSetupScreenState extends ConsumerState<MfaSetupScreen> {
         child: GestureDetector(
           onTap: () {
             Clipboard.setData(ClipboardData(text: _secret));
-            _snack('Secret key copied');
+            _autoClearClipboard(_secret);
+            _snack('Secret key copied — clears in 60s');
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -271,9 +283,10 @@ class _MfaSetupScreenState extends ConsumerState<MfaSetupScreen> {
                   RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
-              Clipboard.setData(
-                  ClipboardData(text: _recoveryCodes!.join('\n')));
-              _snack('Recovery codes copied');
+              final text = _recoveryCodes!.join('\n');
+              Clipboard.setData(ClipboardData(text: text));
+              _autoClearClipboard(text);
+              _snack('Recovery codes copied — clears in 60s');
             },
           ),
         ),

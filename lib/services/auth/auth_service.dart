@@ -98,12 +98,20 @@ class AuthService {
     final e = _normalizeEmail(email);
     if (EnvConfig.hasSupabase) return _supabaseLogin(e, password);
 
+    // Brute-force lockout: block after too many recent failures.
+    final lockMsg = _lockoutMessage(e);
+    if (lockMsg != null) {
+      return AuthResult(AuthStatus.rateLimited, message: lockMsg);
+    }
+
     final account = _readAccount(e);
     if (account == null) {
+      await _registerFailedLogin(e);
       return const AuthResult(AuthStatus.userNotFound,
-          message: 'No account found for this email');
+          message: 'Incorrect email or password'); // don't reveal which
     }
     if (!PasswordHasher.verify(password, account.passwordHash)) {
+      await _registerFailedLogin(e);
       return const AuthResult(AuthStatus.invalidCredentials,
           message: 'Incorrect email or password');
     }
@@ -113,18 +121,53 @@ class AuthService {
       if (mfaCode == null || mfaCode.isEmpty) {
         return AuthResult(AuthStatus.mfaRequired, account: account);
       }
-      final okTotp = Totp.verify(account.mfaSecret ?? '', mfaCode);
+      final step = Totp.matchedStep(account.mfaSecret ?? '', mfaCode);
+      // Replay guard: reject a TOTP whose step was already used.
+      final lastStep = HiveService.settings.get('mfa_step_$e') as int?;
+      final okTotp = step != null && (lastStep == null || step > lastStep);
       final okRecovery = !okTotp && _consumeRecoveryCode(account, mfaCode);
       if (!okTotp && !okRecovery) {
+        await _registerFailedLogin(e);
         return const AuthResult(AuthStatus.mfaInvalid,
             message: 'Invalid authentication code');
       }
+      if (okTotp) await HiveService.settings.put('mfa_step_$e', step);
       if (okRecovery) await _writeAccount(account);
     }
 
+    await _clearFailedLogins(e);
     _enforceExpiry(account);
     await _setSession(e);
     return AuthResult.success(account);
+  }
+
+  // ── Brute-force lockout ──────────────────────────────────────────────────────
+
+  static const _maxLoginAttempts = 5;
+  static const _lockoutWindow = Duration(minutes: 15);
+
+  static String? _lockoutMessage(String email) {
+    final until = HiveService.settings.get('login_lock_$email') as String?;
+    if (until == null) return null;
+    final t = DateTime.tryParse(until);
+    if (t == null || DateTime.now().isAfter(t)) return null;
+    final mins = t.difference(DateTime.now()).inMinutes + 1;
+    return 'Too many attempts. Try again in $mins min.';
+  }
+
+  static Future<void> _registerFailedLogin(String email) async {
+    final n = (HiveService.settings.get('login_fail_$email') as int? ?? 0) + 1;
+    await HiveService.settings.put('login_fail_$email', n);
+    if (n >= _maxLoginAttempts) {
+      await HiveService.settings.put('login_lock_$email',
+          DateTime.now().add(_lockoutWindow).toIso8601String());
+      await HiveService.settings.put('login_fail_$email', 0);
+    }
+  }
+
+  static Future<void> _clearFailedLogins(String email) async {
+    await HiveService.settings.delete('login_fail_$email');
+    await HiveService.settings.delete('login_lock_$email');
   }
 
   // ── Password reset (OTP) ─────────────────────────────────────────────────────
@@ -142,8 +185,13 @@ class AuthService {
 
     final account = _readAccount(e);
     if (account == null) {
-      // Don't leak which emails exist — pretend success.
-      return const AuthResult(AuthStatus.otpRequired);
+      // Don't leak which emails exist — do equivalent work (generate + hash a
+      // throwaway OTP) so the not-found path can't be timed apart, then return
+      // the same "sent" result without storing anything.
+      _generateOtp();
+      _sha256(_generateOtp());
+      return const AuthResult(AuthStatus.otpRequired,
+          message: 'If an account exists, a code has been sent');
     }
 
     final code = _generateOtp();
@@ -178,7 +226,7 @@ class AuthService {
           : const AuthResult(AuthStatus.otpInvalid, message: 'Invalid code');
     }
 
-    final check = _verifyOtp(e, otp, 'reset');
+    final check = await _verifyOtp(e, otp, 'reset');
     if (check != AuthStatus.ok) {
       return AuthResult(check,
           message: check == AuthStatus.otpExpired
@@ -312,7 +360,8 @@ class AuthService {
     await HiveService.settings.put('$_otpPrefix$email', payload);
   }
 
-  static AuthStatus _verifyOtp(String email, String code, String purpose) {
+  static Future<AuthStatus> _verifyOtp(
+      String email, String code, String purpose) async {
     final raw = HiveService.settings.get('$_otpPrefix$email') as String?;
     if (raw == null) return AuthStatus.otpExpired;
     final data = jsonDecode(raw) as Map<String, dynamic>;
@@ -320,15 +369,26 @@ class AuthService {
     final expiresAt = DateTime.parse(data['expiresAt'] as String);
     if (DateTime.now().isAfter(expiresAt)) return AuthStatus.otpExpired;
 
-    var attempts = (data['attempts'] as int);
+    final attempts = (data['attempts'] as int);
     if (attempts >= _maxOtpAttempts) return AuthStatus.rateLimited;
 
-    if (data['purpose'] != purpose || data['hash'] != _sha256(code)) {
+    // Constant-time compare; persist the incremented attempt count atomically.
+    final hashOk = _constantTimeHex(data['hash'] as String, _sha256(code));
+    if (data['purpose'] != purpose || !hashOk) {
       data['attempts'] = attempts + 1;
-      HiveService.settings.put('$_otpPrefix$email', jsonEncode(data));
+      await HiveService.settings.put('$_otpPrefix$email', jsonEncode(data));
       return AuthStatus.otpInvalid;
     }
     return AuthStatus.ok;
+  }
+
+  static bool _constantTimeHex(String a, String b) {
+    if (a.length != b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) {
+      diff |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
+    }
+    return diff == 0;
   }
 
   static Future<void> _clearOtp(String email) async {

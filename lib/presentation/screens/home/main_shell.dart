@@ -9,6 +9,7 @@ import '../../../data/local/hive_service.dart';
 import '../../../services/sms_scanner_service.dart';
 import '../../../services/demo_data_service.dart';
 import '../../../services/notification_service.dart';
+import '../../../core/security/integrity_service.dart';
 import '../../providers/cache_provider.dart';
 
 bool get _isDemoMode =>
@@ -48,6 +49,7 @@ class _MainShellState extends ConsumerState<MainShell>
       }
       await SmsScannerService.startListening();
       await _rescan();
+      _warnIfCompromised();
     });
 
     // Periodic catch-up scan (foreground only).
@@ -72,6 +74,25 @@ class _MainShellState extends ConsumerState<MainShell>
     if (added > 0 && mounted) {
       ref.read(transactionCacheProvider.notifier).bump();
     }
+  }
+
+  /// One-time advisory if the device looks rooted (financial-data risk).
+  void _warnIfCompromised() {
+    if (!IntegrityService.isCompromised || !mounted) return;
+    if (HiveService.settings.get('root_warning_shown', defaultValue: false) as bool) {
+      return;
+    }
+    HiveService.settings.put('root_warning_shown', true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 8),
+        backgroundColor: AppColors.error,
+        content: const Text(
+          '⚠️ This device appears to be rooted. Your financial data may be at '
+          'risk — use SpendLens on a non-rooted device for full protection.',
+        ),
+      ),
+    );
   }
 
   @override

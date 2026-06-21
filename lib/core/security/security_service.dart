@@ -54,8 +54,14 @@ class SecurityService {
   }
 
   static String? validatePassword(String input) {
-    if (input.length < 4) return 'Password must be at least 4 characters';
+    if (input.length < 6) return 'Use at least 6 characters';
     if (input.length > 64) return 'Password too long';
+    // Reject trivially-guessable PINs.
+    const weak = {
+      '000000', '111111', '123456', '654321', '121212', '123123',
+      '112233', '1234', '0000', '1111', 'password', 'admin'
+    };
+    if (weak.contains(input.toLowerCase())) return 'This code is too common';
     return null;
   }
 

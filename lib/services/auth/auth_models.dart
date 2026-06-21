@@ -132,6 +132,7 @@ class PasswordStrength {
     return PasswordStrength(score, labels[score], unmet);
   }
 
-  /// Minimum bar to accept a password at signup.
-  bool get isAcceptable => score >= 3 && !unmet.contains('At least 8 characters');
+  /// Minimum bar to accept a password at signup. Hardened: every complexity
+  /// rule must be met (uppercase, lowercase, number, symbol) AND length ≥ 8.
+  bool get isAcceptable => unmet.isEmpty;
 }
