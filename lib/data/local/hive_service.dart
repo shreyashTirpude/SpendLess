@@ -47,14 +47,20 @@ class HiveService {
       _userBox,
       encryptionCipher: encryptionCipher,
     );
-    // Settings box is encrypted too — it now holds auth accounts (PBKDF2 hashes,
-    // TOTP secrets, recovery hashes) and consent records. On upgrade from an
-    // older unencrypted box, recreate it (pre-release: acceptable reset).
+    // Settings box (preferences, tier, consent). Auth credentials & session now
+    // live in keystore-backed secure storage, NOT here — so a settings open
+    // failure can never wipe logins. Open order is non-destructive: encrypted →
+    // legacy plaintext → (last resort) recreate. We never delete on the first
+    // failure, avoiding the data-loss bug that forced re-logins.
     try {
       await Hive.openBox(_settingsBox, encryptionCipher: encryptionCipher);
     } catch (_) {
-      await Hive.deleteBoxFromDisk(_settingsBox);
-      await Hive.openBox(_settingsBox, encryptionCipher: encryptionCipher);
+      try {
+        await Hive.openBox(_settingsBox); // legacy unencrypted box
+      } catch (_) {
+        await Hive.deleteBoxFromDisk(_settingsBox);
+        await Hive.openBox(_settingsBox, encryptionCipher: encryptionCipher);
+      }
     }
   }
 

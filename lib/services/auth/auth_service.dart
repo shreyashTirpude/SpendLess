@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../../core/config/env_config.dart';
@@ -22,7 +23,7 @@ import 'auth_models.dart';
 class AuthService {
   static const _uuid = Uuid();
 
-  // Hive settings keys
+  // Secure-storage keys (OS keystore-backed — survives reliably, encrypted).
   static const _accountsKey = 'auth_accounts';
   static const _sessionKey = 'auth_session_email';
   static const _otpPrefix = 'auth_otp_';
@@ -30,12 +31,66 @@ class AuthService {
   static const _maxOtpAttempts = 5;
   static const _otpTtl = Duration(minutes: 10);
 
+  // Credentials live in keystore-backed secure storage (NOT the Hive settings
+  // box) so sessions persist across days/reboots and are never wiped by a Hive
+  // box-open failure. An in-memory cache keeps the public getters synchronous.
+  static const _secure = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions:
+        IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
+  );
+
+  static final Map<String, AuthAccount> _accounts = {};
+  static String? _sessionEmail;
+  static bool _loaded = false;
+
+  /// Load persisted accounts + session into memory. MUST be awaited once at
+  /// startup (in main, after Hive init). Also migrates any legacy accounts that
+  /// were previously stored in the Hive settings box.
+  static Future<void> initialize() async {
+    if (_loaded) return;
+    try {
+      // Migrate legacy data from the old Hive-settings location (one-time).
+      await _migrateLegacy();
+
+      final raw = await _secure.read(key: _accountsKey);
+      if (raw != null && raw.isNotEmpty) {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        _accounts
+          ..clear()
+          ..addAll(map.map((k, v) =>
+              MapEntry(k, AuthAccount.fromJson(v as Map<String, dynamic>))));
+      }
+      _sessionEmail = await _secure.read(key: _sessionKey);
+    } catch (e) {
+      debugPrint('[AuthService] init error (non-fatal): $e');
+    }
+    _loaded = true;
+  }
+
+  static Future<void> _migrateLegacy() async {
+    try {
+      final already = await _secure.read(key: _accountsKey);
+      if (already != null && already.isNotEmpty) return; // already migrated
+      final legacyAccounts = HiveService.settings.get(_accountsKey) as String?;
+      if (legacyAccounts != null && legacyAccounts.isNotEmpty) {
+        await _secure.write(key: _accountsKey, value: legacyAccounts);
+        await HiveService.settings.delete(_accountsKey);
+      }
+      final legacySession = HiveService.settings.get(_sessionKey) as String?;
+      if (legacySession != null && legacySession.isNotEmpty) {
+        await _secure.write(key: _sessionKey, value: legacySession);
+        await HiveService.settings.delete(_sessionKey);
+      }
+    } catch (_) {/* best-effort */}
+  }
+
   // ── Session ──────────────────────────────────────────────────────────────────
 
   static AuthAccount? get currentUser {
-    final email = HiveService.settings.get(_sessionKey) as String?;
+    final email = _sessionEmail;
     if (email == null) return null;
-    final acct = _readAccount(email);
+    final acct = _accounts[_normalizeEmail(email)];
     if (acct != null) _enforceExpiry(acct);
     return acct;
   }
@@ -43,7 +98,8 @@ class AuthService {
   static bool get isLoggedIn => currentUser != null;
 
   static Future<void> signOut() async {
-    await HiveService.settings.delete(_sessionKey);
+    _sessionEmail = null;
+    await _secure.delete(key: _sessionKey);
   }
 
   // ── Sign up ────────────────────────────────────────────────────────────────
@@ -323,29 +379,23 @@ class AuthService {
     }
   }
 
-  // ── Local store helpers ──────────────────────────────────────────────────────
+  // ── Local store helpers (in-memory cache + secure storage) ────────────────────
 
-  static Map<String, AuthAccount> _readAccounts() {
-    final raw = HiveService.settings.get(_accountsKey) as String?;
-    if (raw == null || raw.isEmpty) return {};
-    final map = jsonDecode(raw) as Map<String, dynamic>;
-    return map.map((k, v) =>
-        MapEntry(k, AuthAccount.fromJson(v as Map<String, dynamic>)));
-  }
+  static Map<String, AuthAccount> _readAccounts() => _accounts;
 
   static AuthAccount? _readAccount(String email) =>
-      _readAccounts()[_normalizeEmail(email)];
+      _accounts[_normalizeEmail(email)];
 
   static Future<void> _writeAccount(AuthAccount account) async {
-    final accounts = _readAccounts();
-    accounts[account.email] = account;
+    _accounts[account.email] = account;
     final encoded =
-        jsonEncode(accounts.map((k, v) => MapEntry(k, v.toJson())));
-    await HiveService.settings.put(_accountsKey, encoded);
+        jsonEncode(_accounts.map((k, v) => MapEntry(k, v.toJson())));
+    await _secure.write(key: _accountsKey, value: encoded);
   }
 
   static Future<void> _setSession(String email) async {
-    await HiveService.settings.put(_sessionKey, _normalizeEmail(email));
+    _sessionEmail = _normalizeEmail(email);
+    await _secure.write(key: _sessionKey, value: _sessionEmail!);
   }
 
   // ── OTP store ────────────────────────────────────────────────────────────────

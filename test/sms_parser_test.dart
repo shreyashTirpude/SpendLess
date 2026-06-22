@@ -415,6 +415,26 @@ void main() {
       expect(r, isNotNull);
       expect(r!.amount, 750.00);
     });
+
+    // ── Terse real transactions must NOT be dropped by the junk filter ──────
+    test('NEFT "transferred to" still parses', () {
+      final r = p('INR 15,000.00 transferred to A/c XXXXXX1234 via NEFT. UTR: HDFC2259. -HDFCBK');
+      expect(r, isNotNull);
+      expect(r!.amount, 15000.00);
+    });
+
+    test('Terse "Paid Rs to merchant" still parses', () {
+      final r = p('Paid Rs.200.00 to Zomato via UPI Ref 5123. -HDFCBK');
+      expect(r, isNotNull);
+      expect(r!.amount, 200.00);
+    });
+
+    test('IMPS "received from" credit still parses', () {
+      final r = p('INR 3,000.00 received from RAHUL via IMPS in A/c XX4821. -HDFCBK');
+      expect(r, isNotNull);
+      expect(r!.amount, 3000.00);
+      expect(r.isCredit, true);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────

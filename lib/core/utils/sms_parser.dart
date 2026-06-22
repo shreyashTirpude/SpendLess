@@ -292,32 +292,23 @@ class SmsParser {
     return false;
   }
 
-  /// A genuine transaction confirmation: a settlement verb applied to an
-  /// account/card with a balance or reference. Loan/credit *offers* never have
-  /// this; real loan-EMI debits and disbursal credits do.
-  static bool _looksConfirmed(String body) {
-    final hasVerb = body.contains('debited') ||
-        body.contains('credited') ||
-        body.contains('withdrawn') ||
-        body.contains('spent') ||
-        body.contains('deducted') ||
-        body.contains('sent to') || // UPI P2P send
-        (body.contains('paid') && body.contains(' to ')) ||
-        body.contains('received');
-    final hasAnchor = body.contains('a/c') ||
-        body.contains('acct') ||
-        body.contains('account') ||
-        body.contains('card') ||
-        body.contains('avl bal') ||
-        body.contains('avbl bal') ||
-        body.contains('available bal') ||
-        body.contains('bal:') ||
-        body.contains('upi ref') ||
-        body.contains('txn id') ||
-        body.contains('ref no') ||
-        body.contains('utr');
-    return hasVerb && hasAnchor;
-  }
+  /// True when the SMS describes actual money movement (a settlement verb is
+  /// present). This is intentionally INCLUSIVE — we only need to distinguish a
+  /// real transaction from pure info messages (balance enquiries, OTPs, ads),
+  /// which carry an amount but no settlement verb. Precise junk rejection is
+  /// handled separately by [_isNonTransaction]; requiring an account "anchor"
+  /// here was dropping legitimate-but-terse SMS, so it has been removed.
+  static const _settlementVerbs = [
+    'debited', 'credited', 'debit of', 'credit of',
+    'withdrawn', 'withdrawal', 'spent', 'deducted',
+    'sent to', 'sent rs', 'sent inr', 'transferred', 'transfer of',
+    'transfer to', 'trf to', 'paid to', 'paid rs', 'paid inr', 'payment of',
+    'received rs', 'received inr', 'received from', 'money received',
+    'purchase of', 'purchased', 'charged', 'txn of', 'txn amount',
+  ];
+
+  static bool _looksConfirmed(String body) =>
+      _settlementVerbs.any((v) => body.contains(v));
 
   static bool _isBankSms(String body) {
     final hits = _bankKeywords.where((k) => body.contains(k)).length;

@@ -11,6 +11,7 @@ import 'data/local/hive_service.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'services/password_service.dart';
 import 'services/demo_data_service.dart';
+import 'services/auth/auth_service.dart';
 
 bool get _isAndroid =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
@@ -34,6 +35,14 @@ void main() async {
     await HiveService.initialize();
   } catch (e) {
     debugPrint('[SpendLens] Hive init failed: $e');
+  }
+
+  // Load persisted auth (accounts + session) from secure storage so the user
+  // stays logged in across restarts. Must run before the splash auth gate.
+  try {
+    await AuthService.initialize();
+  } catch (e) {
+    debugPrint('[SpendLens] Auth init failed: $e');
   }
 
   // Seed demo data on every non-Android platform (macOS, web, iOS, Windows)
