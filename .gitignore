@@ -49,3 +49,8 @@ behance_finance.png
 dribbble_finance.png
 # Agent worktrees (temp; auto-cleaned)
 .claude/worktrees/
+
+# Release signing (never commit)
+*.jks
+android/key.properties
+android/app/spendlens-release.jks
