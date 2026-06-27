@@ -54,3 +54,9 @@ dribbble_finance.png
 *.jks
 android/key.properties
 android/app/spendlens-release.jks
+
+# android
+android/local.properties
+
+# macos
+macos

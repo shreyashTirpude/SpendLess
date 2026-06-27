@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:hive/hive.dart';
+import 'package:spendlens/domain/models/transaction.dart';
 import 'package:telephony/telephony.dart';
 import '../core/utils/sms_parser.dart';
 import '../data/local/hive_service.dart';
@@ -34,34 +36,60 @@ class SmsScannerService {
       return 0;
     }
 
+    // SmsParser should own the parsing mechanism entirely
+    // for (final sms in messages) {
+    //   final body = sms.body;
+    //   if (body == null || body.isEmpty) continue;
+    //
+    //   final dateMs = int.tryParse(sms.date?.toString() ?? '');
+    //   final receivedAt = dateMs != null
+    //       ? DateTime.fromMillisecondsSinceEpoch(dateMs)
+    //       : DateTime.now();
+    //
+    //   final parsed = SmsParser.parse(body, receivedAt);
+    //   if (parsed == null) continue;
+    //
+    //
+    //
+    //
+    //   await box.put(tx.id, tx);
+    //   added++;
+    // }
+
+    List<ParsedSms> parsedMessages = SmsParser.parseMessages(messages).parsedMessages;
+    // parsed and rejected also calculated in ParsedResult for debugging purposes
+
     final box = HiveService.transactions;
-    int added = 0;
 
-    for (final sms in messages) {
-      final body = sms.body;
-      if (body == null || body.isEmpty) continue;
+    int ingestedCount = await _ingestToHive(parsedMessages, box);
 
-      final dateMs = int.tryParse(sms.date?.toString() ?? '');
-      final receivedAt = dateMs != null
-          ? DateTime.fromMillisecondsSinceEpoch(dateMs)
-          : DateTime.now();
 
-      final parsed = SmsParser.parse(body, receivedAt);
-      if (parsed == null) continue;
+    debugPrint('[SmsScannerService] Scanned ${messages.length} SMS, added $ingestedCount new transactions');
+    return ingestedCount;
+  }
 
-      // Deduplicate by raw SMS hash
-      final alreadyExists = box.values.any(
-        (t) => t.rawSmsHash == parsed.rawSmsHash,
+  static Future<int> _ingestToHive(
+      List<ParsedSms> messages,
+      Box<Transaction> hiveBox,
+      ) async {
+    int addedToHive = 0;
+
+    for (final message in messages) {
+      final alreadyExists = hiveBox.values.any(
+            (t) => t.rawSmsHash == message.rawSmsHash,
       );
-      if (alreadyExists) continue;
 
-      final tx = SmsParser.toTransaction(parsed);
-      await box.put(tx.id, tx);
-      added++;
+      if (alreadyExists) {
+        continue;
+      }
+
+      final tx = SmsParser.toTransaction(message);
+
+      await hiveBox.put(tx.id, tx);
+      addedToHive++;
     }
 
-    debugPrint('[SmsScannerService] Scanned ${messages.length} SMS, added $added new transactions');
-    return added;
+    return addedToHive;
   }
 
   /// Listen for new incoming SMS in real-time.
@@ -84,17 +112,20 @@ class SmsScannerService {
   static Future<void> _onNewSms(SmsMessage message) async {
     final body = message.body;
     if (body == null) return;
-    final parsed = SmsParser.parse(body, DateTime.now());
+    final parsed = SmsParser.parseSingle(body, DateTime.now());
     if (parsed == null) return;
 
     // Deduplicate by raw SMS hash — same check as scanInbox() to prevent
     // double entries when a bank SMS arrives while a rescan is in progress.
+    //looping through everytime (needs an easy lookup strategy O(1))
     final alreadyExists = HiveService.transactions.values.any(
       (t) => t.rawSmsHash == parsed.rawSmsHash,
     );
     if (alreadyExists) return;
 
     final tx = SmsParser.toTransaction(parsed);
+
+    // Have to check HiveService, but instantiating in each functions seems problematic
     await HiveService.transactions.put(tx.id, tx);
     debugPrint('[SmsScannerService] New transaction: ${tx.merchant} ₹${tx.amount}');
 
@@ -115,7 +146,9 @@ class SmsScannerService {
   static Future<void> _checkDailyBudget() async {
     try {
       final settings = HiveService.settings;
+
       // Respect the user's "Budget alerts" toggle.
+      // HiveService owns budget alerts seems like a design problem
       if (!(settings.get('budgetAlerts', defaultValue: true) as bool)) return;
       final now = DateTime.now();
       final isWeekend =
@@ -155,7 +188,7 @@ class SmsScannerService {
 Future<void> _onBackgroundSms(SmsMessage message) async {
   final body = message.body;
   if (body == null) return;
-  final parsed = SmsParser.parse(body, DateTime.now());
+  final parsed = SmsParser.parseSingle(body, DateTime.now());
   if (parsed == null) return;
   // In background we can't access Hive without re-initialising
   // The foreground service handles persistence; this just logs

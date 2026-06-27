@@ -1,6 +1,6 @@
 // ignore_for_file: avoid_print
 
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:spendlens/core/utils/sms_parser.dart';
 import 'package:spendlens/core/utils/merchant_normalizer.dart';
 import 'package:spendlens/core/utils/category_engine.dart';
@@ -9,7 +9,7 @@ void main() {
   final now = DateTime(2026, 6, 19, 10, 0);
 
   // ── Helper ──────────────────────────────────────────────────────────────────
-  ParsedSms? p(String sms) => SmsParser.parse(sms, now);
+  ParsedSms? p(String sms) => SmsParser.parseSingle(sms, now);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // SECTION 1: Amount extraction

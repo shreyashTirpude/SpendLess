@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:telephony/telephony.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/models/transaction.dart';
 import 'category_engine.dart';
@@ -10,6 +11,7 @@ import 'merchant_normalizer.dart';
 class ParsedSms {
   final double amount;
   final String merchant;
+  // discussion: isCredit should be an enum instead called `transactionType` which can have values `CREDIT` and `DEBIT`
   final bool isCredit;
   final String? accountLast4;
   final DateTime transactionDate;
@@ -31,6 +33,18 @@ class ParsedSms {
     this.channel = 'UNKNOWN',
     this.isP2P = false,
   });
+}
+
+class ParsedResult{
+  final List<ParsedSms> parsedMessages;
+  final int rejectedCount;
+  final int parsedCount;
+
+  const ParsedResult({
+    required this.parsedMessages,
+    required this.rejectedCount,
+    required this.parsedCount
+});
 }
 
 // ── Main parser ───────────────────────────────────────────────────────────────
@@ -153,8 +167,45 @@ class SmsParser {
 
   // ── Main parse entry-point ────────────────────────────────────────────────
 
-  static ParsedSms? parse(String smsBody, DateTime receivedAt,
+  static ParsedResult parseMessages(List<SmsMessage> messages) {
+    int rejectedCount = 0;
+    int parsedCount = 0;
+
+    final parsedMessages = <ParsedSms>[];
+
+    for (final sms in messages) {
+      String? smsBody = sms.body;
+
+      if (smsBody == null || smsBody.isEmpty){
+        rejectedCount++;
+        continue;
+      }
+
+      final receivedAt = sms.date != null
+          ? DateTime.fromMillisecondsSinceEpoch(sms.date!)
+          : DateTime.now();
+
+      final parsed = parseSingle(smsBody, receivedAt);
+
+      if (parsed == null){
+        rejectedCount++;
+        continue;
+      }
+
+
+      parsedCount++;
+      parsedMessages.add(parsed);
+    }
+
+    print("Parsed: $parsedCount");
+    print("Rejected: $rejectedCount");
+
+    return ParsedResult(parsedMessages: parsedMessages, rejectedCount: rejectedCount, parsedCount: parsedCount);
+  }
+
+  static ParsedSms? parseSingle(String smsBody, DateTime receivedAt,
       {String? senderAddress}) {
+
     final body = smsBody.toLowerCase();
 
     // Optional: trust check on sender
@@ -162,6 +213,7 @@ class SmsParser {
       if (!_isTrustedSender(senderAddress)) return null;
     }
 
+    //
     if (_shouldReject(body)) return null;
     if (!_isBankSms(body)) return null;
 
@@ -225,6 +277,8 @@ class SmsParser {
       (prefix) => clean.startsWith(prefix) || clean == prefix,
     );
   }
+
+  //
 
   static bool _shouldReject(String body) =>
       _rejectKeywords.any((k) => body.contains(k));
