@@ -106,16 +106,20 @@ void main() {
   });
 
   group('SecurityService.validatePassword()', () {
-    test('4-char password passes', () {
-      expect(SecurityService.validatePassword('1234'), isNull);
+    test('6+ char password passes', () {
+      expect(SecurityService.validatePassword('mypin99'), isNull);
     });
 
     test('alphanumeric password passes', () {
       expect(SecurityService.validatePassword('Abc123!'), isNull);
     });
 
-    test('3-char password fails (too short)', () {
-      expect(SecurityService.validatePassword('abc'), isNotNull);
+    test('common PIN is rejected', () {
+      expect(SecurityService.validatePassword('123456'), isNotNull);
+    });
+
+    test('5-char password fails (too short)', () {
+      expect(SecurityService.validatePassword('abcd'), isNotNull);
     });
 
     test('empty password fails', () {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:crypto/crypto.dart';
 import 'package:telephony/telephony.dart';
 import 'package:uuid/uuid.dart';
@@ -197,8 +198,8 @@ class SmsParser {
       parsedMessages.add(parsed);
     }
 
-    print("Parsed: $parsedCount");
-    print("Rejected: $rejectedCount");
+    // debugPrint is silenced in release builds (set in main) — avoids logging.
+    debugPrint("[SmsParser] Parsed: $parsedCount, Rejected: $rejectedCount");
 
     return ParsedResult(parsedMessages: parsedMessages, rejectedCount: rejectedCount, parsedCount: parsedCount);
   }

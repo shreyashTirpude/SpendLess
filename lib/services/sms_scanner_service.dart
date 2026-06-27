@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:hive/hive.dart';
 import 'package:spendlens/domain/models/transaction.dart';
 import 'package:telephony/telephony.dart';

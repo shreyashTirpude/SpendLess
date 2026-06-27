@@ -57,7 +57,7 @@ class DemoDataService {
     final seen = box.values.map(_sig).toSet();
     int added = 0;
     for (final (sms, date) in _smsCorpus()) {
-      final p = SmsParser.parse(sms, date, senderAddress: _senderFor(sms));
+      final p = SmsParser.parseSingle(sms, date, senderAddress: _senderFor(sms));
       if (p == null) continue;
       final tx = SmsParser.toTransaction(p);
       // Anchor to the relative demo date (ignore the 2026 date in the SMS text)
