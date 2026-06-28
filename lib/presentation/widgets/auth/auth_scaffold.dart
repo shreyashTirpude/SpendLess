@@ -144,7 +144,9 @@ class _Logo extends StatelessWidget {
             ],
           ),
           child: const Center(
-              child: Text('💸', style: TextStyle(fontSize: 30))),
+            child: Icon(Icons.account_balance_wallet_rounded,
+                color: Colors.white, size: 32),
+          ),
         ),
         const SizedBox(height: 12),
         Text('SpendLens',

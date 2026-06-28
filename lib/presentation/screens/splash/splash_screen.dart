@@ -79,23 +79,54 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              '💸',
-              style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 80),
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.gradientStart, AppColors.gradientMid],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(26),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.gradientStart.withValues(alpha: 0.45),
+                    blurRadius: 28,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Icon(Icons.account_balance_wallet_rounded,
+                    color: Colors.white, size: 44),
+              ),
             ),
             const SizedBox(height: 20),
             Text(
               'SpendLens',
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                color: AppColors.primary,
-                fontSize: 28,
+                color: AppColors.textPrimary,
+                fontSize: 27,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Track every rupee, effortlessly',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                letterSpacing: 0.2,
               ),
             ),
             const SizedBox(height: 40),
             SizedBox(
-              width: 40,
-              height: 40,
+              width: 26,
+              height: 26,
               child: CircularProgressIndicator(
+                strokeWidth: 2.4,
                 valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
               ),
             ),
