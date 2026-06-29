@@ -576,8 +576,10 @@ class SettingsScreen extends ConsumerWidget {
           subject: 'SpendLens Transaction Backup — ${DateFormat('d MMM yyyy').format(DateTime.now())}',
         );
       }
-      if (!context.mounted) return;
     }
+
+    // Guard the context after any awaits above (export share / choice dialog).
+    if (!context.mounted) return;
 
     // Step 2: final confirmation before delete
     final confirm = await showDialog<bool>(

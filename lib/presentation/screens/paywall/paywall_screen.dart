@@ -89,7 +89,7 @@ class PaywallScreen extends ConsumerWidget {
       ),
       builder: (_) => const _UpiSheet(),
     );
-    if (upi == null || upi.isEmpty) return;
+    if (upi == null || upi.isEmpty || !context.mounted) return;
 
     // Step 1: send the user to their UPI app to AUTHORIZE an autopay mandate.
     // (No money moves now — a mandate just pre-authorizes the future charge.)

@@ -161,12 +161,15 @@ class _MainShellState extends ConsumerState<MainShell>
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () async {
+                  // Capture the messenger before popping the sheet — its
+                  // context is defunct after Navigator.pop.
+                  final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(context);
                   await DemoDataService.reset();
                   await DemoDataService.seed();
                   if (mounted) ref.read(transactionCacheProvider.notifier).bump();
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       const SnackBar(content: Text('Demo data reset and re-seeded ✓')),
                     );
                   }

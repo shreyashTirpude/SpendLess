@@ -50,20 +50,17 @@ class SmsScannerService {
       List<ParsedSms> messages,
       Box<Transaction> hiveBox,
       ) async {
+    // Build the set of existing hashes once (O(n+m) dedup instead of O(n*m)).
+    final existingHashes =
+        hiveBox.values.map((t) => t.rawSmsHash).whereType<String>().toSet();
     int addedToHive = 0;
 
     for (final message in messages) {
-      final alreadyExists = hiveBox.values.any(
-            (t) => t.rawSmsHash == message.rawSmsHash,
-      );
-
-      if (alreadyExists) {
-        continue;
-      }
+      if (existingHashes.contains(message.rawSmsHash)) continue;
 
       final tx = SmsParser.toTransaction(message);
-
       await hiveBox.put(tx.id, tx);
+      existingHashes.add(message.rawSmsHash);
       addedToHive++;
     }
 
