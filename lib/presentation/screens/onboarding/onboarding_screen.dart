@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../data/local/hive_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
@@ -84,9 +85,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (_currentPage == 3) {
-                          context.go('/auth');
+                          // Persist completion so the splash gate doesn't loop
+                          // the user back to onboarding on every launch.
+                          await HiveService.settings.put('isOnboarded', true);
+                          if (context.mounted) context.go('/auth');
                         } else {
                           _pageController.nextPage(
                             duration: const Duration(milliseconds: 300),
