@@ -5,7 +5,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/recurring_detector.dart';
 import '../../../data/local/hive_service.dart';
 import '../../providers/recurring_provider.dart';
-import '../../providers/transaction_provider.dart';
 
 // ── Local state: cancelled subs ────────────────────────────────────────────────
 

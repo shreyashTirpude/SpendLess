@@ -537,7 +537,6 @@ class MerchantNormalizer {
   );
 
   // Trailing city / trip / order-id noise
-  static final _asteriskNoiseRe = RegExp(r'\*.*$');
   static final _cityCodeRe = RegExp(r'\s+[A-Z]{2,6}\d*$');
   static final _orderIdRe = RegExp(r'[\s\-#_](?:ORDER|TXN|TRIP|REF|ID|INV)?#?\d{4,}$',
       caseSensitive: false);

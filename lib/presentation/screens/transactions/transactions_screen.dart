@@ -1220,13 +1220,11 @@ class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final bool isAction;
   final Color? selectedColor;
   const _FilterChip({
     required this.label,
     required this.selected,
     required this.onTap,
-    this.isAction = false,
     this.selectedColor,
   });
 
@@ -1239,18 +1237,10 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected
-              ? activeColor
-              : isAction
-                  ? AppColors.error.withValues(alpha: 0.1)
-                  : context.cardColor,
+          color: selected ? activeColor : context.cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected
-                ? activeColor
-                : isAction
-                    ? AppColors.error.withValues(alpha: 0.3)
-                    : context.cardBorderColor,
+            color: selected ? activeColor : context.cardBorderColor,
           ),
         ),
         child: Text(
@@ -1258,11 +1248,7 @@ class _FilterChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: selected
-                ? Colors.white
-                : isAction
-                    ? AppColors.error
-                    : context.textSecondary,
+            color: selected ? Colors.white : context.textSecondary,
           ),
           overflow: TextOverflow.ellipsis,
         ),

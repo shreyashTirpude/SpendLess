@@ -17,7 +17,6 @@ class MfaSetupScreen extends ConsumerStatefulWidget {
 
 class _MfaSetupScreenState extends ConsumerState<MfaSetupScreen> {
   late final String _secret;
-  late final String _uri;
   String _code = '';
   bool _loading = false;
   List<String>? _recoveryCodes;
@@ -28,7 +27,6 @@ class _MfaSetupScreenState extends ConsumerState<MfaSetupScreen> {
     final email = AuthService.currentUser?.email ?? 'user@spendlens.app';
     final setup = AuthService.beginMfaSetup(email);
     _secret = setup.secret;
-    _uri = setup.uri;
   }
 
   Future<void> _verify() async {

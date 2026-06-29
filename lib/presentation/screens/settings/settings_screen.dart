@@ -11,7 +11,6 @@ import '../../../data/local/hive_service.dart';
 import '../../../services/password_service.dart';
 import '../../../services/sms_scanner_service.dart';
 import '../../../services/auth/auth_service.dart';
-import '../../../services/demo_data_service.dart';
 import '../../../services/notification_service.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -1011,40 +1010,6 @@ class _ActionTile extends StatelessWidget {
             else Icon(Icons.chevron_right_rounded, color: context.textMuted, size: 18),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PrivacyPoint extends StatelessWidget {
-  final String icon, title, body;
-  final BuildContext context;
-  const _PrivacyPoint({required this.icon, required this.title, required this.body, required this.context});
-
-  @override
-  Widget build(BuildContext ctx) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(icon, style: const TextStyle(fontSize: 18)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 2),
-                Text(body,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        )),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../domain/models/subscription_tier.dart';
 import '../../providers/micro_savings_provider.dart';
 import '../../providers/subscription_provider.dart';
 

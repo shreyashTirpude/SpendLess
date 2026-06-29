@@ -12,7 +12,7 @@ import 'merchant_normalizer.dart';
 class ParsedSms {
   final double amount;
   final String merchant;
-  // discussion: isCredit should be an enum instead called `transactionType` which can have values `CREDIT` and `DEBIT`
+  // (CREDIT vs DEBIT)
   final bool isCredit;
   final String? accountLast4;
   final DateTime transactionDate;

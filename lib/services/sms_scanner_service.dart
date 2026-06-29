@@ -35,29 +35,8 @@ class SmsScannerService {
       return 0;
     }
 
-    // SmsParser should own the parsing mechanism entirely
-    // for (final sms in messages) {
-    //   final body = sms.body;
-    //   if (body == null || body.isEmpty) continue;
-    //
-    //   final dateMs = int.tryParse(sms.date?.toString() ?? '');
-    //   final receivedAt = dateMs != null
-    //       ? DateTime.fromMillisecondsSinceEpoch(dateMs)
-    //       : DateTime.now();
-    //
-    //   final parsed = SmsParser.parse(body, receivedAt);
-    //   if (parsed == null) continue;
-    //
-    //
-    //
-    //
-    //   await box.put(tx.id, tx);
-    //   added++;
-    // }
-
-    List<ParsedSms> parsedMessages = SmsParser.parseMessages(messages).parsedMessages;
-    // parsed and rejected also calculated in ParsedResult for debugging purposes
-
+    // SmsParser owns parsing; the scanner only orchestrates + persists.
+    final parsedMessages = SmsParser.parseMessages(messages).parsedMessages;
     final box = HiveService.transactions;
 
     int ingestedCount = await _ingestToHive(parsedMessages, box);
@@ -116,7 +95,6 @@ class SmsScannerService {
 
     // Deduplicate by raw SMS hash — same check as scanInbox() to prevent
     // double entries when a bank SMS arrives while a rescan is in progress.
-    //looping through everytime (needs an easy lookup strategy O(1))
     final alreadyExists = HiveService.transactions.values.any(
       (t) => t.rawSmsHash == parsed.rawSmsHash,
     );
@@ -124,7 +102,6 @@ class SmsScannerService {
 
     final tx = SmsParser.toTransaction(parsed);
 
-    // Have to check HiveService, but instantiating in each functions seems problematic
     await HiveService.transactions.put(tx.id, tx);
     debugPrint('[SmsScannerService] New transaction: ${tx.merchant} ₹${tx.amount}');
 
@@ -147,7 +124,6 @@ class SmsScannerService {
       final settings = HiveService.settings;
 
       // Respect the user's "Budget alerts" toggle.
-      // HiveService owns budget alerts seems like a design problem
       if (!(settings.get('budgetAlerts', defaultValue: true) as bool)) return;
       final now = DateTime.now();
       final isWeekend =
