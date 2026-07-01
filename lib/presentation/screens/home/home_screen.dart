@@ -795,7 +795,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                     const SizedBox(height: 10),
                     ...sortedMerchants.take(8).map((e) {
                       final color = CategoryEngine.getCategoryFlutterColor(e.value.category);
-                      final icon = CategoryEngine.getCategoryIcon(e.value.category);
+                      final icon = CategoryEngine.getCategoryIconData(e.value.category);
                       final share = total > 0 ? e.value.total / total : 0.0;
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
@@ -817,8 +817,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Center(
-                                      child: Text(icon,
-                                          style: const TextStyle(fontSize: 17))),
+                                      child: Icon(icon, size: 17, color: color)),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -885,7 +884,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                         final i = entry.key;
                         final t = entry.value;
                         final color = CategoryEngine.getCategoryFlutterColor(t.category);
-                        final icon = CategoryEngine.getCategoryIcon(t.category);
+                        final icon = CategoryEngine.getCategoryIconData(t.category);
                         return Column(
                           children: [
                             Padding(
@@ -901,8 +900,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Center(
-                                        child: Text(icon,
-                                            style: const TextStyle(fontSize: 16))),
+                                        child: Icon(icon, size: 16, color: color)),
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
@@ -1685,7 +1683,7 @@ class _SpendingBreakdownCard extends StatelessWidget {
                           (e.value / totalSpent * 100).toStringAsFixed(0);
                       final color =
                           CategoryEngine.getCategoryFlutterColor(e.key);
-                      final catIcon = CategoryEngine.getCategoryIcon(e.key);
+                      final catIcon = CategoryEngine.getCategoryIconData(e.key);
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 5),
                         child: Column(
@@ -1693,7 +1691,7 @@ class _SpendingBreakdownCard extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Text(catIcon, style: const TextStyle(fontSize: 12)),
+                                Icon(catIcon, size: 13, color: color),
                                 const SizedBox(width: 5),
                                 Expanded(
                                   child: Text(

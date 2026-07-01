@@ -17,7 +17,7 @@ class CategoryDetailScreen extends ConsumerWidget {
     final txnsAsync = ref.watch(transactionsByCategoryProvider(category));
     final comparisonAsync = ref.watch(categoryMonthComparisonProvider(category));
     final color = CategoryEngine.getCategoryFlutterColor(category);
-    final icon = CategoryEngine.getCategoryIcon(category);
+    final icon = CategoryEngine.getCategoryIconData(category);
 
     return Scaffold(
       backgroundColor: context.bgColor,
@@ -29,7 +29,7 @@ class CategoryDetailScreen extends ConsumerWidget {
         ),
         title: Row(
           children: [
-            Text(icon, style: const TextStyle(fontSize: 20)),
+            Icon(icon, size: 20, color: color),
             const SizedBox(width: 8),
             Text(category, style: Theme.of(context).textTheme.headlineSmall),
           ],
@@ -129,7 +129,7 @@ class CategoryDetailScreen extends ConsumerWidget {
     final dates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     final color = CategoryEngine.getCategoryFlutterColor(category);
-    final icon = CategoryEngine.getCategoryIcon(category);
+    final icon = CategoryEngine.getCategoryIconData(category);
     final today = DateTime.now();
     final yesterday = today.subtract(const Duration(days: 1));
 
@@ -204,7 +204,7 @@ class CategoryDetailScreen extends ConsumerWidget {
                                       color: color.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: Center(child: Text(icon, style: const TextStyle(fontSize: 18))),
+                                    child: Center(child: Icon(icon, size: 18, color: color)),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
