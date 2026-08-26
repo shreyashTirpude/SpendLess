@@ -4,9 +4,15 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Firebase is optional: google-services.json is gitignored and only present
+// when a real Firebase project is configured. Applying the plugin without it
+// fails the build, so make it conditional.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 // Load release signing config from android/key.properties (kept out of git).
@@ -33,7 +39,7 @@ android {
 
     defaultConfig {
         applicationId = "com.spendlens.spendlens"
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

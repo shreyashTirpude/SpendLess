@@ -32,7 +32,6 @@ dependencies:
   # Notifications
   flutter_local_notifications: ^17.2.0
   timezone: ^0.9.4
-  flutter_timezone: ^2.1.0
 
   # Security
   local_auth: ^2.3.0
