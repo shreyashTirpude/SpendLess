@@ -10,7 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/category_engine.dart';
 
 class InsightsScreen extends ConsumerStatefulWidget {
-  const InsightsScreen({Key? key}) : super(key: key);
+  const InsightsScreen({super.key});
 
   @override
   ConsumerState<InsightsScreen> createState() => _InsightsScreenState();
@@ -383,9 +383,9 @@ class _SpendingTrendCardState extends State<_SpendingTrendCard> {
                   ),
                 ),
                 titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -431,7 +431,7 @@ class _SpendingTrendCardState extends State<_SpendingTrendCard> {
                         if (idx >= widget.days.length) return null;
                         return LineTooltipItem(
                           '₹${_fmt(widget.days[idx].$2)}\n${DateFormat('d MMM').format(widget.days[idx].$1)}',
-                          TextStyle(
+                          const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w700,
                             fontSize: 11,
@@ -668,7 +668,7 @@ class _WeeklyPatternCard extends StatelessWidget {
                       ),
                       child: Text(
                         '₹${_fmt(val)}',
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontSize: 8, color: AppColors.error, fontWeight: FontWeight.w700),
                       ),
                     )
@@ -855,9 +855,9 @@ class _MonthComparisonCard extends StatelessWidget {
                       Text(e.key, style: Theme.of(context).textTheme.labelMedium),
                       const Spacer(),
                       if (isUp)
-                        Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.error)
+                        const Icon(Icons.arrow_upward_rounded, size: 14, color: AppColors.error)
                       else if (isDown)
-                        Icon(Icons.arrow_downward_rounded, size: 14, color: AppColors.success),
+                        const Icon(Icons.arrow_downward_rounded, size: 14, color: AppColors.success),
                       const SizedBox(width: 2),
                       Text(
                         '₹${_fmt(thisMonth)}',
@@ -1200,7 +1200,7 @@ class _DayRankCard extends StatelessWidget {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(
+                child: const Text(
                   'This month',
                   style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary),
                 ),

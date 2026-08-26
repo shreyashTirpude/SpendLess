@@ -120,7 +120,7 @@ void main() {
     test('getCategoryIcon returns emoji string', () {
       final icon = CategoryEngine.getCategoryIcon('Food & Dining');
       expect(icon, isNotNull);
-      expect(icon!.length, greaterThan(0));
+      expect(icon.length, greaterThan(0));
     });
 
     test('getCategoryFlutterColor returns non-null', () {
@@ -131,7 +131,7 @@ void main() {
     test('getCategoryColor returns hex string starting with #', () {
       final hexColor = CategoryEngine.getCategoryColor('Shopping');
       expect(hexColor, isNotNull);
-      expect(hexColor!, startsWith('#'));
+      expect(hexColor, startsWith('#'));
     });
 
     test('getCategoryColor for unknown returns non-null', () {

@@ -94,7 +94,7 @@ void main() {
   });
 
   group('SpendLens — Auth Screen', () {
-    Future<void> _goToAuth(WidgetTester tester) async {
+    Future<void> goToAuth(WidgetTester tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 3));
       for (int i = 0; i < 3; i++) {
@@ -106,7 +106,7 @@ void main() {
     }
 
     testWidgets('TC-08: Auth screen has email and password fields', (tester) async {
-      await _goToAuth(tester);
+      await goToAuth(tester);
 
       expect(find.byType(TextField), findsNWidgets(2));
       expect(find.text('Email address'), findsOneWidget);
@@ -114,14 +114,14 @@ void main() {
     });
 
     testWidgets('TC-09: Auth screen shows login button and skip option', (tester) async {
-      await _goToAuth(tester);
+      await goToAuth(tester);
 
       expect(find.text('Login'), findsOneWidget);
       expect(find.text('Continue without login'), findsOneWidget);
     });
 
     testWidgets('TC-10: Empty submit shows validation snackbar', (tester) async {
-      await _goToAuth(tester);
+      await goToAuth(tester);
 
       await tester.tap(find.text('Login'));
       await tester.pump();
@@ -130,7 +130,7 @@ void main() {
     });
 
     testWidgets('TC-11: Tap sign-up toggle switches to sign-up mode', (tester) async {
-      await _goToAuth(tester);
+      await goToAuth(tester);
 
       await tester.tap(find.text("Don't have an account? Sign up"));
       await tester.pumpAndSettle();
@@ -142,7 +142,7 @@ void main() {
     });
 
     testWidgets('TC-12: Sign-up toggle back to login mode', (tester) async {
-      await _goToAuth(tester);
+      await goToAuth(tester);
 
       await tester.tap(find.text("Don't have an account? Sign up"));
       await tester.pumpAndSettle();
@@ -154,7 +154,7 @@ void main() {
     });
 
     testWidgets('TC-13: Password visibility toggle works', (tester) async {
-      await _goToAuth(tester);
+      await goToAuth(tester);
 
       expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
       await tester.tap(find.byIcon(Icons.visibility_off_outlined));
@@ -163,7 +163,7 @@ void main() {
     });
 
     testWidgets('TC-14: Privacy info card is visible', (tester) async {
-      await _goToAuth(tester);
+      await goToAuth(tester);
 
       expect(
         find.text('Free forever · No credit card · Your data stays on your device'),
@@ -172,7 +172,7 @@ void main() {
     });
 
     testWidgets('TC-15: Continue without login routes to home', (tester) async {
-      await _goToAuth(tester);
+      await goToAuth(tester);
 
       await tester.tap(find.text('Continue without login'));
       await tester.pumpAndSettle();
@@ -182,7 +182,7 @@ void main() {
   });
 
   group('SpendLens — Home Dashboard', () {
-    Future<void> _goToHome(WidgetTester tester) async {
+    Future<void> goToHome(WidgetTester tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 3));
       for (int i = 0; i < 3; i++) {
@@ -196,7 +196,7 @@ void main() {
     }
 
     testWidgets('TC-16: Dashboard shows SPENT and INCOME cards', (tester) async {
-      await _goToHome(tester);
+      await goToHome(tester);
 
       expect(find.text('SPENT'), findsOneWidget);
       expect(find.text('INCOME'), findsOneWidget);
@@ -204,13 +204,13 @@ void main() {
     });
 
     testWidgets('TC-17: Dashboard shows Recent Transactions section', (tester) async {
-      await _goToHome(tester);
+      await goToHome(tester);
 
       expect(find.text('Recent Transactions'), findsOneWidget);
     });
 
     testWidgets('TC-18: Bottom nav has all 5 tabs', (tester) async {
-      await _goToHome(tester);
+      await goToHome(tester);
 
       expect(find.text('Home'), findsOneWidget);
       expect(find.text('Transactions'), findsOneWidget);
@@ -220,7 +220,7 @@ void main() {
     });
 
     testWidgets('TC-19: Tapping Transactions tab navigates to Transactions screen', (tester) async {
-      await _goToHome(tester);
+      await goToHome(tester);
 
       await tester.tap(find.text('Transactions').last);
       await tester.pumpAndSettle();
@@ -230,7 +230,7 @@ void main() {
     });
 
     testWidgets('TC-20: Tapping Budget tab navigates to Budget screen', (tester) async {
-      await _goToHome(tester);
+      await goToHome(tester);
 
       await tester.tap(find.text('Budget').last);
       await tester.pumpAndSettle();
@@ -239,7 +239,7 @@ void main() {
     });
 
     testWidgets('TC-21: Tapping Insights tab navigates to Insights screen', (tester) async {
-      await _goToHome(tester);
+      await goToHome(tester);
 
       await tester.tap(find.text('Insights').last);
       await tester.pumpAndSettle();
@@ -248,7 +248,7 @@ void main() {
     });
 
     testWidgets('TC-22: Tapping Settings tab navigates to Settings screen', (tester) async {
-      await _goToHome(tester);
+      await goToHome(tester);
 
       await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
@@ -257,7 +257,7 @@ void main() {
     });
 
     testWidgets('TC-23: Home tab returns to Dashboard from Settings', (tester) async {
-      await _goToHome(tester);
+      await goToHome(tester);
 
       await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
@@ -269,7 +269,7 @@ void main() {
   });
 
   group('SpendLens — Transactions Screen', () {
-    Future<void> _goToTransactions(WidgetTester tester) async {
+    Future<void> goToTransactions(WidgetTester tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 3));
       for (int i = 0; i < 3; i++) {
@@ -285,14 +285,14 @@ void main() {
     }
 
     testWidgets('TC-24: Transactions screen has AppBar with title', (tester) async {
-      await _goToTransactions(tester);
+      await goToTransactions(tester);
 
       final appBar = find.byType(AppBar);
       expect(appBar, findsOneWidget);
     });
 
     testWidgets('TC-25: FAB (+) button is present on Transactions screen', (tester) async {
-      await _goToTransactions(tester);
+      await goToTransactions(tester);
 
       expect(find.byType(FloatingActionButton), findsOneWidget);
       expect(find.byIcon(Icons.add), findsOneWidget);
@@ -300,7 +300,7 @@ void main() {
   });
 
   group('SpendLens — Settings Screen', () {
-    Future<void> _goToSettings(WidgetTester tester) async {
+    Future<void> goToSettings(WidgetTester tester) async {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 3));
       for (int i = 0; i < 3; i++) {
@@ -316,14 +316,14 @@ void main() {
     }
 
     testWidgets('TC-26: Settings has Profile section', (tester) async {
-      await _goToSettings(tester);
+      await goToSettings(tester);
 
       expect(find.text('Profile'), findsOneWidget);
       expect(find.text('Name'), findsOneWidget);
     });
 
     testWidgets('TC-27: Settings has Security section with Biometric Lock toggle', (tester) async {
-      await _goToSettings(tester);
+      await goToSettings(tester);
 
       expect(find.text('Security'), findsOneWidget);
       expect(find.text('Biometric Lock'), findsOneWidget);
@@ -331,7 +331,7 @@ void main() {
     });
 
     testWidgets('TC-28: Settings has Notifications section', (tester) async {
-      await _goToSettings(tester);
+      await goToSettings(tester);
 
       expect(find.text('Notifications'), findsOneWidget);
       expect(find.text('Transaction Alerts'), findsOneWidget);

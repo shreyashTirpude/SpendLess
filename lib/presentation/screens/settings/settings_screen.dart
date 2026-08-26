@@ -21,7 +21,7 @@ import '../../providers/health_provider.dart';
 import '../../providers/insights_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,7 +47,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // ── Appearance ──────────────────────────────────────────────────
-            _SectionLabel(label: 'Appearance'),
+            const _SectionLabel(label: 'Appearance'),
             _ToggleTile(
               icon: isDark ? '🌙' : '☀️',
               title: 'Dark Mode',
@@ -58,7 +58,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // ── Profile ─────────────────────────────────────────────────────
-            _SectionLabel(label: 'Profile'),
+            const _SectionLabel(label: 'Profile'),
             _ActionTile(
               icon: '👤',
               title: 'Name',
@@ -82,7 +82,7 @@ class SettingsScreen extends ConsumerWidget {
                   ? Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.12),
+                        color: AppColors.success.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text('Synced',
@@ -130,12 +130,12 @@ class SettingsScreen extends ConsumerWidget {
                   ? Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.12),
+                        color: AppColors.success.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '₹${savingsGoal.toStringAsFixed(0)}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.success,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -168,7 +168,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // ── Security ────────────────────────────────────────────────────
-            _SectionLabel(label: 'Security'),
+            const _SectionLabel(label: 'Security'),
             _ActionTile(
               icon: '🔑',
               title: 'App Password',
@@ -180,10 +180,10 @@ class SettingsScreen extends ConsumerWidget {
                   ? Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.12),
+                        color: AppColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
+                      child: const Text(
                         'ON',
                         style: TextStyle(
                           color: AppColors.primary,
@@ -211,7 +211,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // ── Notifications ────────────────────────────────────────────────
-            _SectionLabel(label: 'Notifications'),
+            const _SectionLabel(label: 'Notifications'),
             _ToggleTile(
               icon: '🔔',
               title: 'Transaction Alerts',
@@ -250,7 +250,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // ── Daily Limits ─────────────────────────────────────────────────
-            _SectionLabel(label: 'Daily Limits'),
+            const _SectionLabel(label: 'Daily Limits'),
             _ActionTile(
               icon: '📅',
               title: 'Weekday Limit (Mon–Fri)',
@@ -275,12 +275,12 @@ class SettingsScreen extends ConsumerWidget {
                   ? Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.12),
+                        color: AppColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '₹${settings.weekdayDailyBudget.toStringAsFixed(0)}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.primary,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -313,7 +313,7 @@ class SettingsScreen extends ConsumerWidget {
                   ? Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.12),
+                        color: Colors.orange.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -330,7 +330,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // ── Data ─────────────────────────────────────────────────────────
-            _SectionLabel(label: 'Data'),
+            const _SectionLabel(label: 'Data'),
             _ActionTile(
               icon: '📤',
               title: 'Export to CSV',
@@ -353,7 +353,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // ── Help ──────────────────────────────────────────────────────────
-            _SectionLabel(label: 'Help'),
+            const _SectionLabel(label: 'Help'),
             _ActionTile(
               icon: '❓',
               title: 'How to Use SpendLens',
@@ -366,7 +366,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // ── About ─────────────────────────────────────────────────────────
-            _SectionLabel(label: 'About'),
+            const _SectionLabel(label: 'About'),
             _ActionTile(
               icon: 'ℹ️',
               title: 'SpendLens',
@@ -745,7 +745,7 @@ class _PasswordSheetState extends State<_PasswordSheet> {
                   ),
                   child: Text(
                     recoveryKey,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 3,
@@ -870,7 +870,7 @@ class _PasswordSheetState extends State<_PasswordSheet> {
                 const SizedBox(height: 10),
                 Text(
                   _error!,
-                  style: TextStyle(color: AppColors.error, fontSize: 13),
+                  style: const TextStyle(color: AppColors.error, fontSize: 13),
                 ),
               ],
 
@@ -894,7 +894,7 @@ class _PasswordSheetState extends State<_PasswordSheet> {
                   child: OutlinedButton(
                     onPressed: _loading ? null : _remove,
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: AppColors.error.withOpacity(0.5)),
+                      side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
                       foregroundColor: AppColors.error,
                     ),
                     child: const Text('Remove Password'),
@@ -1075,24 +1075,24 @@ class _PrivacyManifestCard extends StatelessWidget {
           ),
 
           // Data manifest
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _ManifestHeader(label: 'What IS stored', color: AppColors.success),
-                const SizedBox(height: 8),
-                const _ManifestRow(icon: '💰', text: 'Transaction amount (e.g. ₹250.00)'),
-                const _ManifestRow(icon: '🏪', text: 'Merchant name (e.g. Swiggy, Amazon)'),
-                const _ManifestRow(icon: '📅', text: 'Date and time of the transaction'),
-                const _ManifestRow(icon: '🏷️', text: 'Auto-detected category (Food, Travel…)'),
-                const SizedBox(height: 14),
+                SizedBox(height: 8),
+                _ManifestRow(icon: '💰', text: 'Transaction amount (e.g. ₹250.00)'),
+                _ManifestRow(icon: '🏪', text: 'Merchant name (e.g. Swiggy, Amazon)'),
+                _ManifestRow(icon: '📅', text: 'Date and time of the transaction'),
+                _ManifestRow(icon: '🏷️', text: 'Auto-detected category (Food, Travel…)'),
+                SizedBox(height: 14),
                 _ManifestHeader(label: 'What is NOT stored', color: AppColors.error),
-                const SizedBox(height: 8),
-                const _ManifestRow(icon: '🚫', text: 'Raw SMS text or full message body', negative: true),
-                const _ManifestRow(icon: '🚫', text: 'Account numbers or card details', negative: true),
-                const _ManifestRow(icon: '🚫', text: 'Your name or personal contact info', negative: true),
-                const _ManifestRow(icon: '🚫', text: 'Any data uploaded to the internet', negative: true),
+                SizedBox(height: 8),
+                _ManifestRow(icon: '🚫', text: 'Raw SMS text or full message body', negative: true),
+                _ManifestRow(icon: '🚫', text: 'Account numbers or card details', negative: true),
+                _ManifestRow(icon: '🚫', text: 'Your name or personal contact info', negative: true),
+                _ManifestRow(icon: '🚫', text: 'Any data uploaded to the internet', negative: true),
               ],
             ),
           ),

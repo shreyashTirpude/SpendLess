@@ -64,7 +64,7 @@ void main() async {
 }
 
 class SpendLensApp extends ConsumerStatefulWidget {
-  const SpendLensApp({Key? key}) : super(key: key);
+  const SpendLensApp({super.key});
 
   @override
   ConsumerState<SpendLensApp> createState() => _SpendLensAppState();

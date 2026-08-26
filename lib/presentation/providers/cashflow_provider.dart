@@ -71,21 +71,27 @@ PayeeType _classify(Transaction t) {
     if (_anyMatch(text, [
       'salary', 'payroll', 'employer', 'ctc', 'stipend', 'wages',
       'sal/', '/sal', 'sal-', 'sal credit', 'monthly pay',
-    ])) return PayeeType.salary;
+    ])) {
+      return PayeeType.salary;
+    }
   }
 
   // ── Rent ─────────────────────────────────────────────────────────────────
   if (_anyMatch(text, [
     'rent', 'landlord', 'housing', 'house rent', 'pg ', 'hostel',
     'flat rent', 'room rent', 'society maintenance',
-  ])) return PayeeType.rent;
+  ])) {
+    return PayeeType.rent;
+  }
 
   // ── Loan / EMI ────────────────────────────────────────────────────────────
   if (_anyMatch(text, [
     'emi', 'loan', 'lender', 'home loan', 'car loan', 'personal loan',
     'repayment', 'bajaj finserv', 'hdfc loan', 'icici loan',
     'vehicle loan', 'education loan', 'loan emi', 'nach', 'ecs debit',
-  ])) return PayeeType.loanEmi;
+  ])) {
+    return PayeeType.loanEmi;
+  }
 
   // ── Subscriptions ─────────────────────────────────────────────────────────
   if (t.category == 'Subscriptions' ||
@@ -93,7 +99,9 @@ PayeeType _classify(Transaction t) {
         'netflix', 'spotify', 'hotstar', 'amazon prime', 'zee5', 'sonyliv',
         'youtube premium', 'apple music', 'icloud', 'google one', 'notion',
         'adobe', 'microsoft 365', 'membership', 'subscription',
-      ])) return PayeeType.subscriptions;
+      ])) {
+    return PayeeType.subscriptions;
+  }
 
   // ── Utilities ─────────────────────────────────────────────────────────────
   if (t.category == 'Bills & Utilities' ||
@@ -104,7 +112,9 @@ PayeeType _classify(Transaction t) {
         'broadband', 'internet bill', 'mobile bill', 'recharge',
         'dish tv', 'tata play', 'd2h ', 'sun direct', 'cable tv',
         'maintenance', 'society fee',
-      ])) return PayeeType.utilities;
+      ])) {
+    return PayeeType.utilities;
+  }
 
   // ── Family (Indian relationship keywords + contact-based) ─────────────────
   if (_anyMatch(text, [
@@ -112,7 +122,9 @@ PayeeType _classify(Transaction t) {
     'brother', 'sister', 'bhai', 'didi', 'dada', 'dadi',
     'nana', 'nani', 'uncle', 'aunty', 'chacha', 'chachi',
     'mama ', 'maasi', 'bhabhi', 'jiju', 'sasural',
-  ])) return PayeeType.family;
+  ])) {
+    return PayeeType.family;
+  }
 
   // Contact-based classification (lazy — only if ContactClassifier is loaded)
   if (ContactClassifier().isLoaded) {

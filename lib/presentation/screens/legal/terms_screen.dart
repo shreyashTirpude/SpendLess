@@ -4,7 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/local/hive_service.dart';
 
 class TermsScreen extends StatefulWidget {
-  const TermsScreen({Key? key}) : super(key: key);
+  const TermsScreen({super.key});
 
   @override
   State<TermsScreen> createState() => _TermsScreenState();
@@ -393,7 +393,7 @@ class _LegalDocument extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('• ',
+                        const Text('• ',
                             style: TextStyle(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.bold,
@@ -427,7 +427,7 @@ class _LegalDocument extends StatelessWidget {
                   ),
                   child: Text(
                     s.highlightText,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,

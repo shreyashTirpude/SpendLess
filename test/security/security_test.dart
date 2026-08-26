@@ -204,12 +204,12 @@ void main() {
     test('SQL injection string categorized safely', () {
       // Should not throw, should return a valid category string
       // (CategoryEngine is not imported here — this tests the concept)
-      final injectionString = "'; DROP TABLE transactions; --";
+      const injectionString = "'; DROP TABLE transactions; --";
       expect(() => injectionString.toLowerCase().contains('food'), returnsNormally);
     });
 
     test('null-byte-like strings handled safely', () {
-      final raw = 'merchant\x00injected';
+      const raw = 'merchant\x00injected';
       final cleaned = raw.replaceAll(RegExp(r'[\x00-\x1F]'), '');
       expect(cleaned, equals('merchantinjected'));
     });

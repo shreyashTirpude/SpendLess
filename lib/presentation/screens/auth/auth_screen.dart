@@ -109,6 +109,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     return AuthScaffold(
       title: 'Welcome back',
       subtitle: 'Sign in to keep tracking your money',
+      footer: Column(
+        children: [
+          // Demo is available on every platform — including the Android APK.
+          DemoButton(onPressed: _startDemo),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton(
+              onPressed: () => context.go('/home'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.textMuted,
+                side: BorderSide(color: context.cardBorderColor),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text('Continue without login'),
+            ),
+          ),
+        ],
+      ),
       children: [
         AuthTextField(
           controller: _emailController,
@@ -213,27 +234,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ),
         ),
       ],
-      footer: Column(
-        children: [
-          // Demo is available on every platform — including the Android APK.
-          DemoButton(onPressed: _startDemo),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: OutlinedButton(
-              onPressed: () => context.go('/home'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: context.textMuted,
-                side: BorderSide(color: context.cardBorderColor),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-              child: const Text('Continue without login'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

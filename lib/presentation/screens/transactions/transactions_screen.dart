@@ -12,7 +12,7 @@ import '../../../data/local/hive_service.dart';
 import '../../../domain/models/transaction.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
-  const TransactionsScreen({Key? key}) : super(key: key);
+  const TransactionsScreen({super.key});
 
   @override
   ConsumerState<TransactionsScreen> createState() => _TransactionsScreenState();
@@ -614,7 +614,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: context.cardBorderColor),
                       ),
-                      child: Icon(Icons.people_alt_rounded,
+                      child: const Icon(Icons.people_alt_rounded,
                           color: AppColors.primary, size: 22),
                     ),
                   ),
@@ -752,13 +752,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                             color: AppColors.error.withValues(alpha: 0.12),
                                             borderRadius: BorderRadius.circular(16),
                                           ),
-                                          child: Column(
+                                          child: const Column(
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
                                               Icon(Icons.not_interested_rounded,
                                                   color: AppColors.error, size: 20),
-                                              const SizedBox(height: 2),
-                                              const Text('Ignore',
+                                              SizedBox(height: 2),
+                                              Text('Ignore',
                                                   style: TextStyle(
                                                       color: AppColors.error,
                                                       fontSize: 9,
@@ -1149,7 +1149,7 @@ class _ImpulseCountdownDialogState extends State<_ImpulseCountdownDialog> {
           const SizedBox(height: 8),
           Text(
             '$_remaining',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 40,
               fontWeight: FontWeight.w800,
               color: AppColors.primary,

@@ -18,7 +18,7 @@ import '../../widgets/prediction_summary_card.dart';
 import 'category_detail_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   void _showNotifications(BuildContext context) {
     showModalBottomSheet(
@@ -549,7 +549,7 @@ class _NotificationsSheet extends ConsumerWidget {
                       ),
                       child: Text(
                         '${overBudget.length + nearBudget.length} alerts',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.error,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -1389,11 +1389,11 @@ class _HealthScoreCard extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: context.textMuted, height: 1.5),
             ),
             const SizedBox(height: 18),
-            _ScoreRow(emoji: '🏆', range: '85–100', label: 'Excellent', sub: 'You are saving well and staying within limits', color: AppColors.success),
-            _ScoreRow(emoji: '👍', range: '70–84', label: 'Good', sub: 'You are on the right track', color: const Color(0xFF3ABEFF)),
-            _ScoreRow(emoji: '🙂', range: '55–69', label: 'Fair', sub: 'Some areas need attention', color: AppColors.warning),
-            _ScoreRow(emoji: '⚠️', range: '40–54', label: 'Needs Work', sub: 'Set budgets to gain control', color: Colors.orange),
-            _ScoreRow(emoji: '🚨', range: '0–39', label: 'Critical', sub: 'Spending is more than income', color: AppColors.error),
+            const _ScoreRow(emoji: '🏆', range: '85–100', label: 'Excellent', sub: 'You are saving well and staying within limits', color: AppColors.success),
+            const _ScoreRow(emoji: '👍', range: '70–84', label: 'Good', sub: 'You are on the right track', color: Color(0xFF3ABEFF)),
+            const _ScoreRow(emoji: '🙂', range: '55–69', label: 'Fair', sub: 'Some areas need attention', color: AppColors.warning),
+            const _ScoreRow(emoji: '⚠️', range: '40–54', label: 'Needs Work', sub: 'Set budgets to gain control', color: Colors.orange),
+            const _ScoreRow(emoji: '🚨', range: '0–39', label: 'Critical', sub: 'Spending is more than income', color: AppColors.error),
             const SizedBox(height: 18),
             Container(
               padding: const EdgeInsets.all(14),
@@ -2316,7 +2316,7 @@ class _SavingsGoalCard extends StatelessWidget {
                   ),
                   Text(
                     hasGoal ? 'Edit' : 'Set Goal',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.primary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -2465,9 +2465,9 @@ class _UpcomingBillsCard extends StatelessWidget {
                     color: Colors.orange.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Next 7 days',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: Colors.orange,
                         fontSize: 10,
                         fontWeight: FontWeight.bold),

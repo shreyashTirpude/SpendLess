@@ -141,14 +141,14 @@ void main() {
   });
 
   group('SpendLens — Settings Screen', () {
-    Future<void> _goToSettings(WidgetTester tester) async {
+    Future<void> goToSettings(WidgetTester tester) async {
       await _bootToDashboard(tester);
       await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
     }
 
     testWidgets('TC-F12: Settings lists all sections', (tester) async {
-      await _goToSettings(tester);
+      await goToSettings(tester);
 
       expect(find.text('Profile'), findsOneWidget);
       expect(find.text('Security'), findsOneWidget);
@@ -156,7 +156,7 @@ void main() {
     });
 
     testWidgets('TC-F13: Biometric Lock toggle is interactive', (tester) async {
-      await _goToSettings(tester);
+      await goToSettings(tester);
 
       final switches = find.byType(Switch);
       expect(switches, findsWidgets);
@@ -167,7 +167,7 @@ void main() {
     });
 
     testWidgets('TC-F14: Settings scrollable — bottom items reachable', (tester) async {
-      await _goToSettings(tester);
+      await goToSettings(tester);
 
       await tester.drag(find.byType(ListView).first, const Offset(0, -400));
       await tester.pumpAndSettle();

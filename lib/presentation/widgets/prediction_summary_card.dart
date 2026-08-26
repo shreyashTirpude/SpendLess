@@ -6,7 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../providers/prediction_provider.dart';
 
 class PredictionSummaryCard extends ConsumerWidget {
-  const PredictionSummaryCard({Key? key}) : super(key: key);
+  const PredictionSummaryCard({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -90,10 +90,7 @@ class PredictionSummaryCard extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => ProviderScope(
-        parent: ProviderScope.containerOf(context),
-        child: _ForecastSheet(result: result),
-      ),
+      builder: (_) => _ForecastSheet(result: result),
     );
   }
 }
@@ -263,15 +260,15 @@ class _CashFlowChart extends StatelessWidget {
       LineChartData(
         minY: minY - yPad,
         maxY: maxY + yPad,
-        gridData: FlGridData(show: false),
+        gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
           leftTitles:
-              AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles:
-              AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           topTitles:
-              AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -300,7 +297,7 @@ class _CashFlowChart extends StatelessWidget {
             isCurved: true,
             color: AppColors.primary,
             barWidth: 2.5,
-            dotData: FlDotData(show: false),
+            dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
               color: AppColors.primary.withValues(alpha: 0.12),
@@ -381,8 +378,9 @@ class _LoadingCard extends StatelessWidget {
 }
 
 String _fmt(double amount) {
-  if (amount >= 100000)
+  if (amount >= 100000) {
     return '${(amount / 100000).toStringAsFixed(1)}L';
+  }
   if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
   return amount.toStringAsFixed(0);
 }

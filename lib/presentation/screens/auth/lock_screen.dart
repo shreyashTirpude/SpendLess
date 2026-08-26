@@ -6,7 +6,7 @@ import '../../../services/password_service.dart';
 import '../../../data/local/hive_service.dart';
 
 class LockScreen extends StatefulWidget {
-  const LockScreen({Key? key}) : super(key: key);
+  const LockScreen({super.key});
 
   @override
   State<LockScreen> createState() => _LockScreenState();
@@ -334,7 +334,7 @@ class _LockScreenState extends State<LockScreen>
               const SizedBox(height: 20),
               TextButton(
                 onPressed: _showForgotDialog,
-                child: Text(
+                child: const Text(
                   'Forgot password?',
                   style: TextStyle(color: AppColors.primary, fontSize: 13),
                 ),

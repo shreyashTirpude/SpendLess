@@ -122,6 +122,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       showBack: true,
       title: 'Create account',
       subtitle: 'Start tracking your spending automatically',
+      footer: Center(
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('Already have an account? ',
+                style: TextStyle(color: context.textSecondary, fontSize: 14)),
+            GestureDetector(
+              onTap: () => context.pop(),
+              child: const Text('Sign in',
+                  style: TextStyle(
+                      color: AppColors.primaryLight,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
       children: [
         AuthTextField(
           controller: _name,
@@ -163,23 +180,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           onPressed: _submit,
         ),
       ],
-      footer: Center(
-        child: Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text('Already have an account? ',
-                style: TextStyle(color: context.textSecondary, fontSize: 14)),
-            GestureDetector(
-              onTap: () => context.pop(),
-              child: const Text('Sign in',
-                  style: TextStyle(
-                      color: AppColors.primaryLight,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700)),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
