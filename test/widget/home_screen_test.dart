@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:spendlens/presentation/screens/home/home_screen.dart';
 import 'package:spendlens/presentation/providers/transaction_provider.dart';
 import 'package:spendlens/presentation/providers/health_provider.dart';
@@ -97,6 +98,9 @@ Widget _buildHome({required bool empty}) {
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = false; // fonts are bundled assets
+
   group('HomeScreen — renders without crash', () {
     testWidgets('empty state renders', (tester) async {
       await tester.pumpWidget(_buildHome(empty: true));

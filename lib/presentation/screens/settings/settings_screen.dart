@@ -569,7 +569,7 @@ class SettingsScreen extends ConsumerWidget {
           final date = DateFormat('yyyy-MM-dd').format(t.transactionDate);
           final type = t.isCredit ? 'Credit' : 'Debit';
           final acct = t.accountLast4 ?? '';
-          buffer.writeln('$date,"${t.merchant}","${t.category}",${t.amount},$type,$acct');
+          buffer.writeln('$date,"${SecurityService.sanitizeCsvCell(t.merchant)}","${SecurityService.sanitizeCsvCell(t.category)}",${t.amount},$type,$acct');
         }
         await Share.share(
           buffer.toString(),

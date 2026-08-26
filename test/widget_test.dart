@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:spendlens/core/constants/app_constants.dart';
 import 'package:spendlens/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized(); // google_fonts needs the binding
+  GoogleFonts.config.allowRuntimeFetching = false; // fonts are bundled assets
 
   // Real smoke checks replacing the old `expect(true, isTrue)` placeholder:
   // theme construction and core constants are load-bearing for every screen.

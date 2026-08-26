@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/security/security_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/models/subscription_tier.dart';
 import '../../providers/subscription_provider.dart';
@@ -90,6 +91,14 @@ class PaywallScreen extends ConsumerWidget {
       builder: (_) => const _UpiSheet(),
     );
     if (upi == null || upi.isEmpty || !context.mounted) return;
+    // Trust boundary: the VPA is interpolated into a upi:// URI below.
+    // Reject malformed input instead of letting `&` tamper with params.
+    if (!SecurityService.isValidUpiVpa(upi)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid UPI ID (e.g. name@bank)')),
+      );
+      return;
+    }
 
     // Step 1: send the user to their UPI app to AUTHORIZE an autopay mandate.
     // (No money moves now — a mandate just pre-authorizes the future charge.)
