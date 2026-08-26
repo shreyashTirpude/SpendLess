@@ -203,7 +203,7 @@ final insightCardsProvider = FutureProvider<List<String>>((ref) async {
     if (pct > 100) {
       insights.add('🔴 On track to overspend — projected ₹${_fmt(projected.projected)} vs ₹${_fmt(income)} income');
     } else if (pct > 85) {
-      insights.add('⚠️ Projected ₹${_fmt(projected.projected)} spend (${pct}% of income) — leave some margin');
+      insights.add('⚠️ Projected ₹${_fmt(projected.projected)} spend ($pct% of income) — leave some margin');
     } else {
       insights.add('✅ Projected ₹${_fmt(projected.projected)} spend — ${100 - pct}% headroom remaining');
     }

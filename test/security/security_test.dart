@@ -204,14 +204,70 @@ void main() {
     test('SQL injection string categorized safely', () {
       // Should not throw, should return a valid category string
       // (CategoryEngine is not imported here — this tests the concept)
-      final injectionString = "'; DROP TABLE transactions; --";
+      const injectionString = "'; DROP TABLE transactions; --";
       expect(() => injectionString.toLowerCase().contains('food'), returnsNormally);
     });
 
     test('null-byte-like strings handled safely', () {
-      final raw = 'merchant\x00injected';
+      const raw = 'merchant\x00injected';
       final cleaned = raw.replaceAll(RegExp(r'[\x00-\x1F]'), '');
       expect(cleaned, equals('merchantinjected'));
+    });
+  });
+
+  // ── UPI VPA validation (upi:// URI parameter-injection guard) ─────────────
+
+  group('SecurityService.isValidUpiVpa()', () {
+    test('normal VPAs pass', () {
+      expect(SecurityService.isValidUpiVpa('shreyash@okhdfcbank'), isTrue);
+      expect(SecurityService.isValidUpiVpa('user.name-1_x@ybl'), isTrue);
+      expect(SecurityService.isValidUpiVpa('  name@bank  '), isTrue, reason: 'trimmed');
+    });
+
+    test('parameter-injection attempts fail', () {
+      // Would rewrite the mandate amount if interpolated raw.
+      expect(SecurityService.isValidUpiVpa('a@b&am=999999'), isFalse);
+      expect(SecurityService.isValidUpiVpa('a@b?cu=USD'), isFalse);
+      expect(
+          SecurityService.isValidUpiVpa('x@y%26am=999999'), isFalse,
+          reason: 'no %-encoding tricks');
+    });
+
+    test('structural garbage fails', () {
+      expect(SecurityService.isValidUpiVpa(''), isFalse);
+      expect(SecurityService.isValidUpiVpa('nobody@'), isFalse);
+      expect(SecurityService.isValidUpiVpa('@bank'), isFalse);
+      expect(SecurityService.isValidUpiVpa('no-at-sign'), isFalse);
+      expect(SecurityService.isValidUpiVpa('a b@c'), isFalse);
+    });
+  });
+
+  // ── CSV cell sanitization (formula injection guard) ───────────────────────
+
+  group('SecurityService.sanitizeCsvCell()', () {
+    test('plain text unchanged', () {
+      expect(SecurityService.sanitizeCsvCell('Zomato'), 'Zomato');
+      expect(SecurityService.sanitizeCsvCell('Food & Dining'), 'Food & Dining');
+    });
+
+    test('embedded quotes are doubled', () {
+      expect(
+        SecurityService.sanitizeCsvCell('John "JJ" Doe'),
+        'John ""JJ"" Doe',
+      );
+    });
+
+    test('formula prefixes are neutralized', () {
+      for (final evil in ['=SUM(A1:A2)', '+cmd|\' /C calc', '-2+3', '@SUM(1)']) {
+        final out = SecurityService.sanitizeCsvCell(evil);
+        expect(out.startsWith("'"), isTrue, reason: evil);
+      }
+    });
+
+    test('hyphen mid-string is NOT escaped', () {
+      // Only LEADING dangerous chars get the apostrophe.
+      expect(SecurityService.sanitizeCsvCell('Amazon Seller'), 'Amazon Seller');
+      expect(SecurityService.sanitizeCsvCell('uber-trip'), 'uber-trip');
     });
   });
 }

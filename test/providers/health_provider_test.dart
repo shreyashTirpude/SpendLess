@@ -107,12 +107,14 @@ void main() {
       expect(h.savingsRate, equals(0.0));
     });
 
-    test('budget adherence = 1.0 when no budgets set', () async {
+    test('budget adherence = 0.5 neutral when no budgets set', () async {
+      // Provider intentionally reports 0.5 (neutral) instead of 1.0 so that
+      // users without budgets aren't rewarded a perfect adherence score.
       final stats = _makeStats(income: 5000, spent: 2000);
       final c = _container(stats: stats, categories: []);
       addTearDown(c.dispose);
       final h = await c.read(healthScoreProvider.future);
-      expect(h.budgetAdherence, equals(1.0));
+      expect(h.budgetAdherence, equals(0.5));
     });
 
     test('budget adherence < 1 when over-budget categories exist', () async {

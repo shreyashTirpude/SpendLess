@@ -12,7 +12,6 @@ dependencies:
 
   # State management
   flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
 
   # Local database
   hive_flutter: ^1.1.0
@@ -29,7 +28,6 @@ dependencies:
 
   # Firebase
   firebase_core: ^3.3.0
-  firebase_auth: ^5.1.0
 
   # Notifications
   flutter_local_notifications: ^17.2.0
@@ -71,11 +69,6 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  build_runner: ^2.4.11
-  riverpod_generator: ^2.4.3
-  json_annotation: ^4.9.0
-  json_serializable: ^6.8.0
-  mockito: ^5.4.4
 
 flutter:
   uses-material-design: true
@@ -83,4 +76,5 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/lottie/
+    - assets/fonts/
     - .env

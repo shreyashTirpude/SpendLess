@@ -1,5 +1,6 @@
 /// Plain (codegen-free) models for the auth subsystem. Persisted as JSON inside
 /// the Hive settings box so no new Hive type/adapter is required.
+library;
 
 class AuthAccount {
   final String id;
@@ -38,9 +39,7 @@ class AuthAccount {
   bool get isExpired =>
       tierExpiry != null && DateTime.now().isAfter(tierExpiry!);
 
-  int? get daysUntilExpiry => tierExpiry == null
-      ? null
-      : tierExpiry!.difference(DateTime.now()).inDays;
+  int? get daysUntilExpiry => tierExpiry?.difference(DateTime.now()).inDays;
 
   Map<String, dynamic> toJson() => {
         'id': id,

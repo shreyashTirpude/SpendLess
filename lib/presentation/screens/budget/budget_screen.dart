@@ -10,7 +10,7 @@ import '../../../data/local/hive_service.dart';
 import '../../../domain/models/budget.dart';
 
 class BudgetScreen extends ConsumerStatefulWidget {
-  const BudgetScreen({Key? key}) : super(key: key);
+  const BudgetScreen({super.key});
 
   @override
   ConsumerState<BudgetScreen> createState() => _BudgetScreenState();
@@ -20,7 +20,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
   Future<void> _showSetBudgetDialog({String? prefillCategory, double? currentLimit}) async {
     final formKey = GlobalKey<FormState>();
     String? selectedCategory = prefillCategory;
-    bool _saving = false; // prevents double-tap race on Save
+    bool saving = false; // prevents double-tap race on Save
     final amountController = TextEditingController(
       text: currentLimit != null && currentLimit > 0 ? currentLimit.toStringAsFixed(0) : '',
     );
@@ -135,7 +135,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _saving ? null : () async {
+                        onPressed: saving ? null : () async {
                           if (!formKey.currentState!.validate()) return;
                           if (selectedCategory == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -144,7 +144,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                             return;
                           }
 
-                          setModalState(() => _saving = true);
+                          setModalState(() => saving = true);
 
                           final now = DateTime.now();
                           final monthYear = '${now.year}-${now.month.toString().padLeft(2, '0')}';
@@ -174,7 +174,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
 
                           if (context.mounted) Navigator.pop(ctx);
                         },
-                        child: _saving
+                        child: saving
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                             : const Text('Save Budget'),
                       ),

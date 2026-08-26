@@ -20,7 +20,7 @@ bool get _isDemoMode =>
 
 class MainShell extends ConsumerStatefulWidget {
   final Widget child;
-  const MainShell({Key? key, required this.child}) : super(key: key);
+  const MainShell({super.key, required this.child});
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
@@ -97,10 +97,10 @@ class _MainShellState extends ConsumerState<MainShell>
     }
     HiveService.settings.put('root_warning_shown', true);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 8),
+      const SnackBar(
+        duration: Duration(seconds: 8),
         backgroundColor: AppColors.error,
-        content: const Text(
+        content: Text(
           '⚠️ This device appears to be rooted. Your financial data may be at '
           'risk — use SpendLens on a non-rooted device for full protection.',
         ),
@@ -284,7 +284,7 @@ class _MainShellState extends ConsumerState<MainShell>
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF7C3AED).withOpacity(0.4),
+                        color: const Color(0xFF7C3AED).withValues(alpha: 0.4),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),

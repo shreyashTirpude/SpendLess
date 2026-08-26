@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show kIsWeb, kReleaseMode, defaultTargetPlatform, TargetPlatform, debugPrint;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -18,6 +19,10 @@ bool get _isAndroid =>
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // DM Sans is bundled in assets/fonts — never fetch over the network.
+  // Keeps first launch offline-safe and tests deterministic.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // SECURITY: silence all debug logging in release builds so transaction
   // amounts, merchants, SMS content and tokens never reach logcat.
@@ -64,7 +69,7 @@ void main() async {
 }
 
 class SpendLensApp extends ConsumerStatefulWidget {
-  const SpendLensApp({Key? key}) : super(key: key);
+  const SpendLensApp({super.key});
 
   @override
   ConsumerState<SpendLensApp> createState() => _SpendLensAppState();

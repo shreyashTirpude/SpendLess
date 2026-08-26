@@ -15,7 +15,7 @@ final _cancelledSubsProvider = StateProvider<List<String>>((ref) {
 });
 
 class SubscriptionsScreen extends ConsumerWidget {
-  const SubscriptionsScreen({Key? key}) : super(key: key);
+  const SubscriptionsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -450,7 +450,7 @@ class _RecurringTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final next = item.nextExpected;
-    final daysUntil = next != null ? next.difference(DateTime.now()).inDays : null;
+    final daysUntil = next?.difference(DateTime.now()).inDays;
     final isDueWithin7 = daysUntil != null && daysUntil >= 0 && daysUntil <= 7;
     final idle = _isIdle();
     final priceDrift = _hasPriceDrift;

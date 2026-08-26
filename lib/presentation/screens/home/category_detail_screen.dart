@@ -10,7 +10,7 @@ import '../../../domain/models/transaction.dart';
 
 class CategoryDetailScreen extends ConsumerWidget {
   final String category;
-  const CategoryDetailScreen({Key? key, required this.category}) : super(key: key);
+  const CategoryDetailScreen({super.key, required this.category});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -79,7 +79,7 @@ class CategoryDetailScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(40),
                     child: Column(
                       children: [
-                        Text('🧾', style: const TextStyle(fontSize: 48)),
+                        const Text('🧾', style: TextStyle(fontSize: 48)),
                         const SizedBox(height: 12),
                         Text(
                           'No transactions this month',
@@ -741,9 +741,9 @@ class _ComparisonCard extends StatelessWidget {
                       ),
                     ],
                     titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                       bottomTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
@@ -762,7 +762,7 @@ class _ComparisonCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    gridData: FlGridData(show: false),
+                    gridData: const FlGridData(show: false),
                     borderData: FlBorderData(show: false),
                     maxY: maxVal,
                     barTouchData: BarTouchData(enabled: false),

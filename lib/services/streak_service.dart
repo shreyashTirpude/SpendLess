@@ -12,7 +12,9 @@ class StreakService {
     if (lastChecked != null &&
         lastChecked.day == today.day &&
         lastChecked.month == today.month &&
-        lastChecked.year == today.year) return;
+        lastChecked.year == today.year) {
+      return;
+    }
 
     // Get today's transactions
     final todayTxns = HiveService.transactions.values

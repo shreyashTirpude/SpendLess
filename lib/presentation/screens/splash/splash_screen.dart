@@ -16,7 +16,7 @@ bool get _isDemoPlatform =>
 bool get _isDemoMode => _isDemoPlatform || DemoDataService.isActive;
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -113,7 +113,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
+            const Text(
               'Track every rupee, effortlessly',
               style: TextStyle(
                 color: AppColors.textSecondary,
@@ -122,7 +122,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 40),
-            SizedBox(
+            const SizedBox(
               width: 26,
               height: 26,
               child: CircularProgressIndicator(

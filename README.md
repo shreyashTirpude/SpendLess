@@ -12,7 +12,7 @@ SpendLens reads your bank SMS alerts, extracts transaction details, categorizes 
 - **Zero manual entry** — 10+ Indian bank formats parsed automatically
 - **100% on-device** — Raw SMS never leaves your phone
 - **AES-256 encrypted storage** — Hive local database with encryption keys in Android Keystore
-- **Production-ready** — 55 Dart files, 8,000+ lines, 9 screens, 18 providers, 5 services
+- **Production-ready** — 90+ Dart files, 25,000+ lines, 20 screens, 16 providers, 11 services, 260+ tests
 
 ---
 

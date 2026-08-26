@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
 class HelpScreen extends StatelessWidget {
-  const HelpScreen({Key? key}) : super(key: key);
+  const HelpScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,10 +27,10 @@ class HelpScreen extends StatelessWidget {
         children: [
           _WelcomeBanner(),
           const SizedBox(height: 20),
-          _Section(
+          const _Section(
             emoji: '🏠',
             title: 'Home Screen',
-            color: const Color(0xFF6366F1),
+            color: Color(0xFF6366F1),
             items: [
               _HelpItem(
                 q: 'What is "Total Spent" or "Net Balance"?',
@@ -59,10 +59,10 @@ class HelpScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _Section(
+          const _Section(
             emoji: '📋',
             title: 'Transactions',
-            color: const Color(0xFF10B981),
+            color: Color(0xFF10B981),
             items: [
               _HelpItem(
                 q: 'How does SpendLens track my expenses?',
@@ -89,10 +89,10 @@ class HelpScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _Section(
+          const _Section(
             emoji: '🎯',
             title: 'Budget',
-            color: const Color(0xFFF59E0B),
+            color: Color(0xFFF59E0B),
             items: [
               _HelpItem(
                 q: 'What is a Budget?',
@@ -113,10 +113,10 @@ class HelpScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _Section(
+          const _Section(
             emoji: '📊',
             title: 'Insights',
-            color: const Color(0xFF8B5CF6),
+            color: Color(0xFF8B5CF6),
             items: [
               _HelpItem(
                 q: 'What does the Insights screen show?',
@@ -138,10 +138,10 @@ class HelpScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _Section(
+          const _Section(
             emoji: '❤️',
             title: 'Financial Health',
-            color: const Color(0xFFEF4444),
+            color: Color(0xFFEF4444),
             items: [
               _HelpItem(
                 q: 'What is Financial Health?',
@@ -170,10 +170,10 @@ class HelpScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _Section(
+          const _Section(
             emoji: '⚙️',
             title: 'Settings',
-            color: const Color(0xFF64748B),
+            color: Color(0xFF64748B),
             items: [
               _HelpItem(
                 q: 'What is "Salary Payday"?',
@@ -234,14 +234,14 @@ class _WelcomeBanner extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const Text('👋', style: TextStyle(fontSize: 36)),
-          const SizedBox(width: 14),
+          Text('👋', style: TextStyle(fontSize: 36)),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
                   'Welcome to SpendLens!',
                   style: TextStyle(
@@ -311,7 +311,7 @@ class _SectionState extends State<_Section> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: widget.color.withOpacity(0.12),
+                      color: widget.color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Center(
@@ -434,9 +434,9 @@ class _SupportCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.08),
+        color: AppColors.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [

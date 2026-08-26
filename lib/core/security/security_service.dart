@@ -94,4 +94,28 @@ class SecurityService {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;');
   }
+
+  // ── UPI VPA validation (before embedding in upi:// URIs) ──────────────────
+
+  /// Valid UPI VPA: `name@bank` (letters/digits/dots/hyphens/underscores,
+  /// then @handle of letters). Prevents `&`-based parameter tampering when
+  /// the VPA is interpolated into a upi:// mandate URI.
+  static bool isValidUpiVpa(String input) {
+    final vpa = input.trim();
+    if (vpa.length < 3 || vpa.length > 100) return false;
+    return RegExp(r'^[a-zA-Z0-9._\-]{2,256}@[a-zA-Z]{2,64}$').hasMatch(vpa);
+  }
+
+  // ── CSV cell sanitization (formula injection) ────────────────────────────
+
+  /// Makes [value] safe to place inside a double-quoted CSV field:
+  /// doubles embedded quotes and neutralizes spreadsheet formula prefixes
+  /// (=, +, -, @, tab, CR) that Excel/Sheets would execute on open.
+  static String sanitizeCsvCell(String value) {
+    var v = value.replaceAll('"', '""');
+    if (v.isNotEmpty && RegExp(r'^[=+\-@\t\r]').hasMatch(v)) {
+      v = "'$v";
+    }
+    return v;
+  }
 }
