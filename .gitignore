@@ -39,6 +39,7 @@ Thumbs.db
 # Test
 coverage/
 .coverage
+.gstack/
 
 # Playwright CLI session artifacts
 .playwright-cli/
@@ -57,6 +58,8 @@ android/app/spendlens-release.jks
 
 # android
 android/local.properties
+android/.kotlin/
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 
 # macos
 macos
