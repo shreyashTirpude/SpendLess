@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show kIsWeb, kReleaseMode, defaultTargetPlatform, TargetPlatform, debugPrint;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -28,12 +27,6 @@ void main() async {
   // amounts, merchants, SMS content and tokens never reach logcat.
   if (kReleaseMode) {
     debugPrint = (String? message, {int? wrapWidth}) {};
-  }
-
-  try {
-    await dotenv.load(fileName: '.env');
-  } catch (e) {
-    debugPrint('[SpendLens] dotenv load failed: $e');
   }
 
   try {

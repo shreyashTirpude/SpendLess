@@ -14,6 +14,21 @@ class SmsScannerService {
   static bool get _isAndroid =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
+  /// Normalized sender (address) for a message, or null when absent/blank.
+  /// A null result means the adapter must drop the message rather than parse it
+  /// unverified — this preserves the bank-allowlist guarantee.
+  static String? _senderOrNull(SmsMessage message) {
+    final address = message.address?.trim();
+    if (address == null || address.isEmpty) return null;
+    return address;
+  }
+
+  /// Message timestamp when present, otherwise "now".
+  static DateTime _receivedAt(SmsMessage message) {
+    final ms = message.date;
+    return ms != null ? DateTime.fromMillisecondsSinceEpoch(ms) : DateTime.now();
+  }
+
   static Future<int> scanInbox() async {
     if (!_isAndroid) return 0;
 
@@ -87,7 +102,18 @@ class SmsScannerService {
   static Future<void> _onNewSms(SmsMessage message) async {
     final body = message.body;
     if (body == null) return;
-    final parsed = SmsParser.parseSingle(body, DateTime.now());
+    // SMS adapters must supply the real sender so the bank-allowlist check runs;
+    // a missing address must never silently bypass it.
+    final address = _senderOrNull(message);
+    if (address == null) {
+      debugPrint('[SmsScannerService] Dropped SMS with no sender address');
+      return;
+    }
+    final parsed = SmsParser.parseSingle(
+      body,
+      _receivedAt(message),
+      senderAddress: address,
+    );
     if (parsed == null) return;
 
     // Deduplicate by raw SMS hash — same check as scanInbox() to prevent
@@ -160,7 +186,16 @@ class SmsScannerService {
 Future<void> _onBackgroundSms(SmsMessage message) async {
   final body = message.body;
   if (body == null) return;
-  final parsed = SmsParser.parseSingle(body, DateTime.now());
+  // Same adapter contract as the foreground handler: reject when the sender is
+  // missing so the allowlist can never be bypassed. Helpers are static members
+  // of SmsScannerService, so they must be qualified from this top-level scope.
+  final address = SmsScannerService._senderOrNull(message);
+  if (address == null) return;
+  final parsed = SmsParser.parseSingle(
+    body,
+    SmsScannerService._receivedAt(message),
+    senderAddress: address,
+  );
   if (parsed == null) return;
   // In background we can't access Hive without re-initialising
   // The foreground service handles persistence; this just logs

@@ -239,27 +239,48 @@ class AuthService {
               message: 'Could not send reset email');
     }
 
+    // Local mode has no email transport. In release builds, fail uniformly
+    // BEFORE any account lookup or OTP generation: an unknown email must not
+    // claim "sent" (or do different work) than a known one, which would leak
+    // account existence. Debug builds keep the demo flow and surface the OTP.
+    if (!EnvConfig.hasSupabase && kReleaseMode) {
+      return const AuthResult(AuthStatus.networkError,
+          message: 'Password recovery requires configured email '
+              'authentication. Set up email authentication (e.g. Supabase) to '
+              'recover your password.');
+    }
+
     final account = _readAccount(e);
     if (account == null) {
       // Don't leak which emails exist — do equivalent work (generate + hash a
       // throwaway OTP) so the not-found path can't be timed apart, then return
-      // the same "sent" result without storing anything.
-      _generateOtp();
-      _sha256(_generateOtp());
+      // the same generic result without storing anything.
+      final throwaway = _generateOtp();
+      _sha256(throwaway);
       return const AuthResult(AuthStatus.otpRequired,
           message: 'If an account exists, a code has been sent');
     }
 
     final code = _generateOtp();
-    await _storeOtp(e, code, 'reset');
     final res = await EmailService.sendOtp(
         to: e, code: code, purpose: 'reset your password');
 
+    // The client has no email transport, so the code is never emailed. Debug /
+    // offline builds may surface it in-app instead. (Release builds already
+    // returned above — EmailService.demoFallback is only true in debug.)
+    if (!res.demoFallback) {
+      // Defense-in-depth: never claim a code was sent and never surface the
+      // OTP; returning before _storeOtp leaves no usable code in storage.
+      return const AuthResult(AuthStatus.networkError,
+          message: 'Password recovery requires configured email '
+              'authentication. Set up email authentication (e.g. Supabase) to '
+              'recover your password.');
+    }
+
+    await _storeOtp(e, code, 'reset');
     return AuthResult(AuthStatus.otpRequired,
-        demoOtp: res.demoFallback ? code : null,
-        message: res.demoFallback
-            ? 'Demo mode: your code is shown below'
-            : 'We sent a 6-digit code to $e');
+        demoOtp: code,
+        message: 'Demo mode: your code is shown below');
   }
 
   /// Step 2: verify the OTP and set a new password.
@@ -598,7 +619,9 @@ class AuthService {
       sha256.convert(utf8.encode(s)).toString();
 
   static bool get usingSupabase => EnvConfig.hasSupabase;
-  static bool get usingRealEmail => EnvConfig.hasEmail;
+  // The client never sends email itself; "real" email is whatever the Supabase
+  // project's own flow provides for recovery/verification.
+  static bool get usingRealEmail => EnvConfig.hasSupabase;
 
   static void debugStatus() {
     debugPrint('[AuthService] supabase=${EnvConfig.hasSupabase} '
