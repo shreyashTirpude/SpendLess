@@ -4,6 +4,7 @@ import '../../domain/models/transaction.dart';
 import '../../data/repositories/transaction_repository_impl.dart';
 import '../../data/local/hive_service.dart';
 import '../../core/utils/merchant_normalizer.dart';
+import '../../core/utils/salary_cycle.dart';
 import 'cache_provider.dart';
 
 final transactionRepositoryProvider = Provider((ref) {
@@ -334,24 +335,9 @@ final selectedMonthTransactionsProvider = FutureProvider<List<Transaction>>((ref
 });
 
 // ── Cadence-aware salary cycle engine ────────────────────────────────────────
-
-DateTime _computeCycleStart(DateTime now, int salaryDay) {
-  final lastDayThisMonth = DateTime(now.year, now.month + 1, 0).day;
-  final clamped = min(salaryDay, lastDayThisMonth);
-  if (now.day >= clamped) {
-    return DateTime(now.year, now.month, clamped);
-  }
-  final prevYear = now.month == 1 ? now.year - 1 : now.year;
-  final prevMonth = now.month == 1 ? 12 : now.month - 1;
-  final lastDayPrev = DateTime(prevYear, prevMonth + 1, 0).day;
-  return DateTime(prevYear, prevMonth, min(salaryDay, lastDayPrev));
-}
-
-DateTime _computeCycleEnd(DateTime cycleStart) {
-  final nextMonth = cycleStart.month == 12 ? 1 : cycleStart.month + 1;
-  final nextYear = cycleStart.month == 12 ? cycleStart.year + 1 : cycleStart.year;
-  return DateTime(nextYear, nextMonth, cycleStart.day).subtract(const Duration(days: 1));
-}
+//
+// Boundaries come from SalaryCycle (lib/core/utils/salary_cycle.dart), which
+// keeps the original salary day when clamping across short months.
 
 // ── Aggregated home-screen stats ──────────────────────────────────────────────
 
@@ -368,20 +354,36 @@ typedef HomeStats = ({
 });
 
 final homeStatsProvider = FutureProvider<HomeStats>((ref) async {
-  final txns = await ref.watch(transactionsProvider.future);
+  // Keep the direct cache watch so this provider still refreshes on any
+  // cache bump independent of the derived future providers.
+  ref.watch(transactionCacheProvider);
+
+  // Calendar-month summary fields (totalSpent, totalIncome, categoryTotals,
+  // topPayees, recentTransactions) follow the existing calendar-month
+  // contract: derive them from transactionsProvider (this calendar month,
+  // ignored excluded) so month labels, drilldowns, monthly savings, calendar
+  // cashflow, health score and chat consumers stay consistent.
+  final monthTxns = await ref.watch(transactionsProvider.future);
+
   final now = DateTime.now();
 
   final salaryDay = HiveService.settings.get('salaryDay', defaultValue: 1) as int;
-  final cycleStart = _computeCycleStart(now, salaryDay);
-  final cycleEnd = _computeCycleEnd(cycleStart);
-  final daysRemainingInCycle = max(0, cycleEnd.difference(now).inDays + 1);
+  final cycle = SalaryCycle.forDate(now, salaryDay);
+  final cycleStart = cycle.start;
+  final cycleEnd = cycle.end;
 
+  // Calendar days left in the cycle, ignoring time of day.
+  final today = DateTime(now.year, now.month, now.day);
+  final daysRemainingInCycle = max(0, cycleEnd.difference(today).inDays + 1);
+
+  // Calendar-month totals from the month-scoped provider (already excludes
+  // ignored transactions).
   double totalSpent = 0;
   double totalIncome = 0;
   final categoryTotals = <String, double>{};
   final payeeData = <String, (double, int)>{};
 
-  for (final t in txns.where((t) => !t.isIgnored)) {
+  for (final t in monthTxns) {
     if (t.isCredit) {
       totalIncome += t.amount;
     } else {
@@ -398,17 +400,35 @@ final homeStatsProvider = FutureProvider<HomeStats>((ref) async {
       .map((e) => (name: e.key, amount: e.value.$1, count: e.value.$2))
       .toList();
 
-  final netBalance = totalIncome - totalSpent;
+  // safeToSpend uses the salary-cycle balance ONLY: all non-ignored Hive
+  // transactions within the half-open window [cycle.start, next payday),
+  // i.e. the day after cycle.end. This includes prior-month income at the
+  // start of a cycle without leaking it into the calendar-month fields.
+  final windowEnd = DateTime(cycleEnd.year, cycleEnd.month, cycleEnd.day + 1);
+  double cycleIncome = 0;
+  double cycleSpent = 0;
+  for (final t in HiveService.transactions.values) {
+    if (t.isIgnored) continue;
+    if (t.transactionDate.isBefore(cycleStart)) continue;
+    if (!t.transactionDate.isBefore(windowEnd)) continue;
+    if (t.isCredit) {
+      cycleIncome += t.amount;
+    } else {
+      cycleSpent += t.amount;
+    }
+  }
+
+  final cycleBalance = cycleIncome - cycleSpent;
   final safeToSpend = daysRemainingInCycle > 0
-      ? max(0.0, netBalance / daysRemainingInCycle)
-      : max(0.0, netBalance);
+      ? max(0.0, cycleBalance / daysRemainingInCycle)
+      : max(0.0, cycleBalance);
 
   return (
     totalSpent: totalSpent,
     totalIncome: totalIncome,
     categoryTotals: categoryTotals,
     topPayees: topPayees,
-    recentTransactions: (List<Transaction>.from(txns)
+    recentTransactions: (List<Transaction>.from(monthTxns)
           ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate)))
         .take(5)
         .toList(),

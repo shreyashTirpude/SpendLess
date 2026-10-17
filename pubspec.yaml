@@ -1,7 +1,7 @@
 name: spendlens
 description: Auto SMS-based expense tracker for Android
 publish_to: none
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -53,9 +53,6 @@ dependencies:
   connectivity_plus: ^6.0.3
   package_info_plus: ^8.0.2
 
-  # Environment
-  flutter_dotenv: ^5.1.0
-
   # Fonts
   google_fonts: ^6.2.1
 
@@ -63,6 +60,8 @@ dependencies:
   url_launcher: ^6.3.0
 
 dev_dependencies:
+  # Regression fixture proves legacy dotenv values cannot enable client email.
+  flutter_dotenv: ^5.1.0
   flutter_test:
     sdk: flutter
   integration_test:
@@ -72,8 +71,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/
-    - assets/icons/
-    - assets/lottie/
     - assets/fonts/
-    - .env

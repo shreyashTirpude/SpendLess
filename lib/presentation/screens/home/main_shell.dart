@@ -247,27 +247,13 @@ class _MainShellState extends ConsumerState<MainShell>
     return Scaffold(
       body: Stack(
         children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            transitionBuilder: (child, animation) {
-              final slide = Tween<Offset>(
-                begin: const Offset(0, 0.025),
-                end: Offset.zero,
-              ).animate(animation);
-              final scale = Tween<double>(begin: 0.985, end: 1.0)
-                  .animate(animation);
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: slide,
-                  child: ScaleTransition(scale: scale, child: child),
-                ),
-              );
-            },
-            child: KeyedSubtree(key: ValueKey(idx), child: widget.child),
-          ),
+          // The ShellRoute's nested Navigator is passed in as widget.child
+          // with a stable global key. Wrapping it in an AnimatedSwitcher with
+          // a per-tab ValueKey made both the old and new subtree coexist
+          // during tab changes, mounting the SAME navigator twice and
+          // throwing "Duplicate GlobalKey". GoRouter's pages already animate
+          // route transitions, so the child is placed directly here.
+          widget.child,
           // Demo mode banner — top-right corner
           if (_isDemoMode)
             Positioned(

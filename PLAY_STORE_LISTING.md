@@ -1,22 +1,24 @@
 # SpendLens Play Store Listing
 
+Draft marketing copy, not approval for publication. The 1.0.1 QA APK uses a debug certificate unless a private release keystore is configured. Revalidate the remaining marketing claims and Play policy requirements before publishing.
+
 ## App Title (30 chars max)
 SpendLens: Auto Expense Tracker
 
 ## Short Description (80 chars max)
-Auto-tracks every UPI & bank transaction. Your data never leaves your phone.
+Tracks supported bank SMS on-device, with local spending insights and budgets.
 
 ## Full Description
 
 💸 ZERO manual entry. FULL spending clarity.
 
-SpendLens reads your bank SMS automatically and logs every transaction the moment it happens — UPI, debit card, net banking, credit card. No logging. No typing. Just install and see where your money actually goes.
+SpendLens parses supported bank SMS alerts for UPI, debit card, net banking and credit card transactions. Live listening runs while the app is open; inbox scans catch up when it resumes, with SMS permission granted.
 
 ━━━━━━━━━━━━━━━━━━━━━
 🔒 YOUR PRIVACY IS NOT NEGOTIABLE
 ━━━━━━━━━━━━━━━━━━━━━
 • Your SMS is read on YOUR phone only — never sent to our servers
-• We store: amount, merchant name, category, date. Nothing else.
+• Local transaction records include amount, merchant, category, date, credit/debit type, account last-four when available, source, SMS hash and record metadata; manual entries can include notes.
 • Raw SMS text is processed and immediately discarded
 • No data sold. No ad network profiling. No exceptions.
 • One relevant suggestion per week, based on local data only
@@ -25,19 +27,19 @@ SpendLens reads your bank SMS automatically and logs every transaction the momen
 Unlike Walnut, ET Money, and Moneyview — we do not push loans, credit products, or financial services. We are a pure expense tracker.
 
 ━━━━━━━━━━━━━━━━━━━━━
-⚡ WORKS WITH ALL INDIAN BANKS
+⚡ SUPPORTS RECOGNIZED INDIAN BANK SMS HEADERS
 ━━━━━━━━━━━━━━━━━━━━━
 ✅ HDFC Bank    ✅ SBI          ✅ ICICI Bank
 ✅ Axis Bank    ✅ Kotak        ✅ Yes Bank
-✅ PNB          ✅ Canera Bank  ✅ IndusInd
-✅ All UPI apps (GPay, PhonePe, Paytm, BHIM)
+✅ PNB          ✅ Canara Bank  ✅ IndusInd
+✅ UPI transactions described in supported bank SMS alerts
 
 ━━━━━━━━━━━━━━━━━━━━━
 📱 KEY FEATURES
 ━━━━━━━━━━━━━━━━━━━━━
 🤖 AUTOMATIC TRACKING
-   Every transaction auto-logged the second your bank sends an SMS.
-   Works in the background even when the app is closed.
+   Supported alerts are parsed only when the sender matches a recognized bank header.
+   Live SMS listening runs while the app is open; inbox scans catch up when it resumes.
 
 📊 SMART CATEGORIZATION
    25+ categories: Food, Transport, Shopping, Bills, Health, and more.
@@ -74,10 +76,10 @@ No subscription. No hidden fees. No loans. No spam.
 ## Permissions Explained
 
 - **READ_SMS** — To automatically detect and parse bank transaction messages
-- **RECEIVE_SMS** — To catch new transactions in real time as they happen
-- **INTERNET** — To sync your parsed data to your secure account
+- **RECEIVE_SMS** — For supported incoming bank alerts while the app is open
+- **INTERNET** — Optional Supabase account authentication and password recovery; transaction storage remains local. Local Money Coach requests can contact Ollama on localhost. The client does not send transactional emails directly.
 - **USE_BIOMETRIC** — Optional fingerprint lock for the app
-- **FOREGROUND_SERVICE** — For background SMS listening
+- **FOREGROUND_SERVICE** — Declared by the Android app; continuous background SMS ingestion is not enabled in this candidate
 
 ## Screenshots Copy
 
@@ -87,7 +89,7 @@ No subscription. No hidden fees. No loans. No spam.
 
 **Screenshot 2 (Transactions):**
 - Headline: "Zomato. Uber. Amazon. All auto-categorized."
-- Subtext: "25+ categories. Works with all Indian banks."
+- Subtext: "25+ categories. Supports recognized bank SMS alerts."
 
 **Screenshot 3 (Budget):**
 - Headline: "Set limits. Get alerts. Save more."

@@ -1,18 +1,18 @@
 # SpendLens — Auto Expense Tracker
 
 **Privacy-first, SMS-powered expense tracker for Android.**  
-Every UPI, debit card, and credit card transaction is automatically parsed from bank SMS notifications — on-device, AES-256 encrypted, zero cloud upload.
+Supported bank SMS notifications are parsed on-device and stored locally with AES-256 encryption. Optional Supabase authentication sends account credentials to the configured backend; transaction storage remains local.
 
 ---
 
 ## What It Does
 
-SpendLens reads your bank SMS alerts, extracts transaction details, categorizes them automatically, and gives you a complete picture of your finances — without ever sending your data to a server.
+SpendLens reads supported bank SMS alerts, extracts transaction details, categorizes them automatically, and summarizes your locally stored transactions.
 
 - **Zero manual entry** — 10+ Indian bank formats parsed automatically
 - **100% on-device** — Raw SMS never leaves your phone
 - **AES-256 encrypted storage** — Hive local database with encryption keys in Android Keystore
-- **Production-ready** — 90+ Dart files, 25,000+ lines, 20 screens, 16 providers, 11 services, 260+ tests
+- **QA release candidate** — see the build, testing, and signing requirements below before production distribution.
 
 ---
 
@@ -21,7 +21,7 @@ SpendLens reads your bank SMS alerts, extracts transaction details, categorizes 
 | Screen | What It Does |
 |--------|-------------|
 | **Splash** | Biometric gate on every launch; checks auth + onboarding state |
-| **Auth** | Firebase Auth with PIN fallback; biometric enroll on first login |
+| **Auth** | Local account authentication, or optional Supabase-backed authentication; app-lock PIN and biometrics are separate |
 | **Lock** | App-lock screen (auto-triggers after 2 min background); PIN + biometric |
 | **Onboarding** | 4-slide permission flow (SMS, notifications, biometric) |
 | **Terms** | Scroll-to-accept legal screen; guards onboarding entry |
@@ -42,6 +42,8 @@ SpendLens reads your bank SMS alerts, extracts transaction details, categorizes 
 - Handles SBI, HDFC, ICICI, Axis, Kotak, PNB, BOB, Canara, Union Bank, Yes Bank, IDFC, IndusInd
 - Extracts: amount, merchant name, account last-4, transaction type (credit/debit), date & time
 - SHA-256 deduplication — never double-counts the same SMS
+- Inbox and live adapters require a recognized bank sender header, including supported TRAI route prefixes and suffixes; missing or spoofed headers are rejected.
+- Live listening is foreground-only; inbox catch-up scans run on app resume and periodically while open. Continuous background-isolate ingestion is not enabled.
 - Merchant normalizer maps raw strings to clean names (e.g., "SWIGGY ORDER 1234" → "Swiggy")
 
 ### Auto-Categorization Engine
@@ -66,6 +68,10 @@ SpendLens reads your bank SMS alerts, extracts transaction details, categorizes 
 
 ### Recurring Detector
 Identifies subscriptions and recurring charges from 2+ same-amount transactions with the same merchant within 25–35 day windows. Powers the Subscriptions screen.
+Next-month dates retain the detected day when possible and clamp only to that month's actual last day.
+
+### Salary-Cycle Safe-to-Spend
+The daily safe-to-spend amount uses income minus expenses across the active payday cycle, including its prior-month portion. Payday dates clamp to short months without changing the configured salary day for subsequent months. Dashboard summaries, category budgets, and monthly analytics remain calendar-month scoped.
 
 ### Streak Service
 Tracks no-spend and under-budget streaks; stores streaks in Hive; surfaces them on the Home achievement banner.
@@ -125,13 +131,13 @@ lib/
 
 | Provider | Type | Purpose |
 |---------|------|---------|
-| `transactionCacheProvider` | `NotifierProvider<int>` | Counter — bump to invalidate all derived providers |
+| `transactionCacheProvider` | `StateNotifierProvider<_CacheNotifier, int>` | Counter — bump to invalidate dependent providers |
 | `transactionsProvider` | `FutureProvider` | All transactions for current month |
 | `selectedMonthTransactionsProvider` | `FutureProvider` | Transactions for selected month/year |
-| `homeStatsProvider` | `FutureProvider` | Income, spent, balance, recent 5, daily chart data |
+| `homeStatsProvider` | `FutureProvider` | Calendar-month income, spend and recent 5; salary-cycle daily safe-to-spend |
 | `cashFlowForecastProvider` | `FutureProvider` | Projected end-of-month spend |
-| `savingsGoalProvider` | `StateProvider` | User's monthly savings target |
-| `budgetProvider` | `FutureProvider` | All budgets with live spend |
+| `savingsGoalProvider` | `NotifierProvider` | User's monthly savings target |
+| `budgetsProvider` | `FutureProvider` | Category budgets for the current calendar month |
 | `healthScoreProvider` | `FutureProvider` | Financial health 0–100 |
 | `insightCardsProvider` | `FutureProvider` | Smart insight cards list |
 | `topMerchantsProvider` | `FutureProvider` | Top 5 merchants by frequency |
@@ -142,10 +148,10 @@ lib/
 | `weeklyPatternProvider` | `FutureProvider` | Mon–Sun distribution |
 | `dayOfWeekRankingProvider` | `FutureProvider` | Days ranked by average spend |
 | `topPayeesByAmountProvider` | `FutureProvider` | Top payees by total amount |
-| `userProfileProvider` | `FutureProvider` | Name, avatar, onboarding state |
-| `appSettingsProvider` | `FutureProvider` | Notification prefs, currency, lock config |
+| `userProfileProvider` | `NotifierProvider` | Local user profile, including name and onboarding state |
+| `appSettingsProvider` | `NotifierProvider` | Notification preferences, app lock and weekday/weekend daily budgets |
 | `themeModeProvider` | `NotifierProvider` | Dark/light mode with persistence |
-| `recurringTransactionsProvider` | `FutureProvider` | Subscription detection results |
+| `recurringItemsProvider` | `Provider` | Detected recurring charges, including subscriptions and EMIs |
 
 ---
 
@@ -158,7 +164,7 @@ lib/
 | Deduplication | SHA-256 hash of raw SMS stored — collision-safe; SMS body not recoverable from hash |
 | App lock | Biometric (fingerprint/face) via `local_auth`; PIN fallback via `PasswordService` |
 | Session timeout | Auto-lock after 2 min background via `AppLifecycleListener` |
-| Network | Zero outbound network calls for transaction data (Firebase Auth only) |
+| Network | Optional Supabase account authentication/recovery; local transaction storage. The Money Coach can contact Ollama on localhost. No client email-provider secrets are bundled. |
 
 ---
 
@@ -171,7 +177,7 @@ lib/
 | Local database | Hive 2.x + AES-256 encryption |
 | Navigation | GoRouter 14.x with named routes |
 | Charts | fl_chart 0.68 |
-| Authentication | Firebase Auth 5.x |
+| Authentication | Local secure-storage accounts, optional Supabase GoTrue |
 | Notifications | flutter_local_notifications 17.x |
 | Biometrics | local_auth 2.x |
 | SMS reading | telephony 0.2 (Android BroadcastReceiver) |
@@ -239,12 +245,28 @@ SpendLens is designed with a freemium tier system to convert free users to paid 
 ## Build & Run
 
 ```bash
-# Prerequisites: Flutter 3.32.2, Android SDK, Java 17
+# Prerequisites: Flutter 3.32.2, Android SDK, Java 17; Android API 23+ device
 flutter pub get
 flutter run                          # debug on connected device
-flutter build apk --release          # release APK (~57MB)
-flutter build appbundle --release    # AAB for Play Store
+flutter build apk --release          # release-mode APK; see signing caveat below
+flutter analyze
+flutter test                        # unit/widget suite
+flutter test integration_test/release_smoke_test.dart -d <emulator-id>
 ```
+
+Run build and integration-test commands sequentially: both generate Android plugin registration files. CI uses a disposable API 29 emulator and grants runtime permissions to the synthetic test app. The smoke test covers demo boot, tab navigation, synthetic foreground SMS adapter events (sender rejection and deduplication), manual transaction creation, and persistence across navigation. It does not verify live bank SMS/OS delivery, production authentication, or persistence across process restarts.
+
+No `.env` file is loaded or packaged. Optional public backend configuration is supplied at build time:
+
+```bash
+flutter build apk --release \
+  --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
+```
+
+Never pass a Supabase service-role key or transactional-email provider secret to the client. Password recovery uses Supabase when configured. Without it, local recovery is unavailable in release mode; debug builds can show a local demo OTP. Welcome/expiry emails are not delivered by the client.
+
+For production signing, configure the existing `android/key.properties` and private keystore outside Git. Without that configuration, the current build falls back to the debug certificate: suitable only for a labelled QA prerelease, not Play Store publication or guaranteed upgrades of an existing installation. Do not uninstall an existing app just to bypass a signature mismatch without backing up its data.
 
 Required Android permissions (auto-requested on first launch):
 - `READ_SMS` — transaction parsing
@@ -258,13 +280,13 @@ Required Android permissions (auto-requested on first launch):
 
 | Metric | Count |
 |--------|-------|
-| Dart source files | 55 |
-| Lines of code | ~8,500 |
-| Screens | 13 |
-| Riverpod providers | 21 |
-| Services | 5 |
-| Domain models | 5 |
-| Hive boxes | 5 |
+| Dart files under `lib/` (including generated adapters) | 89 |
+| Lines under `lib/` (including comments and generated adapters) | ~25,800 |
+| Screen Dart files (including main shell) | 21 |
+| Top-level Riverpod provider declarations | 70 |
+| Service Dart files (excluding auth models) | 10 |
+| Domain model Dart files (excluding generated adapters) | 6 |
+| Hive boxes opened by `HiveService` | 4 |
 | Supported bank SMS formats | 12+ |
 | Auto-detected categories | 25+ |
 
@@ -272,7 +294,9 @@ Required Android permissions (auto-requested on first launch):
 
 ## Changelog
 
-### v1.3.0 — June 2026 (current)
+Current APK manifest version: **1.0.1+2**. The historical entries below use earlier documentation labels; they are preserved and are not the current APK version.
+
+### v1.3.0 — June 2026 (historical documentation label)
 - Apple HIG inspired UI overhaul (deep space theme, 3-stop gradient balance card)
 - Frosted glass pill navigation bar (custom `BackdropFilter` + animated pill)
 - Ambient radial glow effect on Home screen (dark mode)
@@ -307,5 +331,7 @@ Required Android permissions (auto-requested on first launch):
 
 **Package:** `com.spendlens.spendlens`  
 **Min SDK:** Android 6.0 (API 23)  
-**Target SDK:** Android 14 (API 34)  
-**Last updated:** June 2026
+**Target SDK:** Android 15 (API 35)<br>
+**Last updated:** October 18, 2026
+
+Related documents: [draft Play Store listing](PLAY_STORE_LISTING.md), [premium strategy source](docs/SpendLens_Premium_Strategy.md).

@@ -54,7 +54,8 @@ class SmsParser {
   static const _uuid = Uuid();
 
   // ── Bank sender-ID allowlist (TRAI DLT headers) ───────────────────────────
-  static const _trustedSenderPrefixes = [
+  // Exact, normalized headers only (see [_isTrustedSender]).
+  static const _trustedSenders = [
     'HDFCBK', 'HDFCBN', 'HDFCCC',
     'ICICIB', 'ICICBK', 'ICICCC',
     'SBIBNK', 'SBMSMS', 'SBIPSG', 'SBICRD', 'SBIBK',
@@ -182,11 +183,20 @@ class SmsParser {
         continue;
       }
 
+      // Reject a missing/blank sender BEFORE parsing: passing null (or an
+      // empty) address into parseSingle would bypass the bank-allowlist trust
+      // check, since a null senderAddress means "pure parser caller".
+      final senderAddress = sms.address?.trim();
+      if (senderAddress == null || senderAddress.isEmpty) {
+        rejectedCount++;
+        continue;
+      }
+
       final receivedAt = sms.date != null
           ? DateTime.fromMillisecondsSinceEpoch(sms.date!)
           : DateTime.now();
 
-      final parsed = parseSingle(smsBody, receivedAt);
+      final parsed = parseSingle(smsBody, receivedAt, senderAddress: senderAddress);
 
       if (parsed == null){
         rejectedCount++;
@@ -209,8 +219,12 @@ class SmsParser {
 
     final body = smsBody.toLowerCase();
 
-    // Optional: trust check on sender
-    if (senderAddress != null && senderAddress.isNotEmpty) {
+    // Sender trust check. `senderAddress == null` means a pure parser caller
+    // (tests / offline replays) that supplies no routing metadata, so trust is
+    // not enforced. Every SMS adapter MUST pass the real address: a supplied
+    // (even empty) address that isn't on the bank allowlist is rejected, so an
+    // adapter can never accidentally bypass the allowlist by omitting it.
+    if (senderAddress != null) {
       if (!_isTrustedSender(senderAddress)) return null;
     }
 
@@ -271,12 +285,37 @@ class SmsParser {
 
   // ── Trusted sender check ──────────────────────────────────────────────────
 
+  /// True only when [sender] is a known bank/TRAI header after normalization.
+  ///
+  /// Real Indian bank SMS arrive with headers such as `HDFCBK`, `AD-HDFCBK`
+  /// (optional two-letter route prefix) and `VM-SBIBNK-S` (optional terminal
+  /// `-S/-T/-P/-G` severity suffix). We strip those decorations, then require an
+  /// EXACT allowlist match — so numeric personal senders and prefix lookalikes
+  /// like `HDFCBKSCAM` are rejected.
   static bool _isTrustedSender(String sender) {
-    // Strip TRAI suffix: HDFCBK-S, SBIBNK-T → HDFCBK
-    final clean = sender.toUpperCase().replaceAll(RegExp(r'-[STPG]$'), '').trim();
-    return _trustedSenderPrefixes.any(
-      (prefix) => clean.startsWith(prefix) || clean == prefix,
-    );
+    final clean = sender.trim().toUpperCase();
+    if (clean.isEmpty) return false;
+    // Personal mobile numbers are never bank senders (banks use DLT headers).
+    if (RegExp(r'^\d+$').hasMatch(clean)) return false;
+
+    final base = _normalizeSenderId(clean);
+    return _trustedSenders.contains(base);
+  }
+
+  /// Strips the optional TRAI terminal suffix and two-letter route prefix to
+  /// yield the bare DLT header (e.g. `VM-SBIBNK-S` → `SBIBNK`).
+  static String _normalizeSenderId(String upper) {
+    // First try the header exactly as-is (most senders arrive bare).
+    if (_trustedSenders.contains(upper)) return upper;
+    // Drop an optional terminal -S/-T/-P/-G (severity / route class).
+    var s = upper.replaceFirst(RegExp(r'-[STPG]$'), '');
+    if (_trustedSenders.contains(s)) return s;
+    // Drop an optional two-letter route prefix separated by a hyphen —
+    // e.g. `AD-HDFCBK` / `VM-SBIBNK`. The remainder is the header, which is
+    // validated against the exact allowlist by the caller.
+    final m = RegExp(r'^[A-Z]{2}-(.+)$').firstMatch(s);
+    if (m != null) return m.group(1)!;
+    return s;
   }
 
   //

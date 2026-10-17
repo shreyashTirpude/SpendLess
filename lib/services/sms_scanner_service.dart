@@ -14,6 +14,21 @@ class SmsScannerService {
   static bool get _isAndroid =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
+  /// Normalized sender (address) for a message, or null when absent/blank.
+  /// A null result means the adapter must drop the message rather than parse it
+  /// unverified — this preserves the bank-allowlist guarantee.
+  static String? _senderOrNull(SmsMessage message) {
+    final address = message.address?.trim();
+    if (address == null || address.isEmpty) return null;
+    return address;
+  }
+
+  /// Message timestamp when present, otherwise "now".
+  static DateTime _receivedAt(SmsMessage message) {
+    final ms = message.date;
+    return ms != null ? DateTime.fromMillisecondsSinceEpoch(ms) : DateTime.now();
+  }
+
   static Future<int> scanInbox() async {
     if (!_isAndroid) return 0;
 
@@ -76,7 +91,9 @@ class SmsScannerService {
       if (!granted) return;
       _telephony.listenIncomingSms(
         onNewMessage: _onNewSms,
-        onBackgroundMessage: _onBackgroundSms,
+        // listenInBackground:false requires onBackgroundMessage:null; passing a
+        // callback makes the plugin assert and the foreground listener never
+        // registers in debug.
         listenInBackground: false, // avoid background isolate crash on older devices
       );
     } catch (e) {
@@ -87,7 +104,18 @@ class SmsScannerService {
   static Future<void> _onNewSms(SmsMessage message) async {
     final body = message.body;
     if (body == null) return;
-    final parsed = SmsParser.parseSingle(body, DateTime.now());
+    // SMS adapters must supply the real sender so the bank-allowlist check runs;
+    // a missing address must never silently bypass it.
+    final address = _senderOrNull(message);
+    if (address == null) {
+      debugPrint('[SmsScannerService] Dropped SMS with no sender address');
+      return;
+    }
+    final parsed = SmsParser.parseSingle(
+      body,
+      _receivedAt(message),
+      senderAddress: address,
+    );
     if (parsed == null) return;
 
     // Deduplicate by raw SMS hash — same check as scanInbox() to prevent
@@ -153,16 +181,4 @@ class SmsScannerService {
       debugPrint('[SmsScannerService] _checkDailyBudget error: $e');
     }
   }
-}
-
-// Top-level background handler (required by telephony package)
-@pragma('vm:entry-point')
-Future<void> _onBackgroundSms(SmsMessage message) async {
-  final body = message.body;
-  if (body == null) return;
-  final parsed = SmsParser.parseSingle(body, DateTime.now());
-  if (parsed == null) return;
-  // In background we can't access Hive without re-initialising
-  // The foreground service handles persistence; this just logs
-  debugPrint('[BG] New bank SMS: ${parsed.merchant} ₹${parsed.amount}');
 }
