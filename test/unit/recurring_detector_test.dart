@@ -25,6 +25,24 @@ Transaction _txn({
 
 void main() {
   group('RecurringDetector.detect', () {
+    // Value: protects=month-end charge forecasts;
+    // fails_when=valid days 29-31 are flattened to day 28;
+    // why_new=existing detection tests only assert a future non-null date; seam=none
+    for (final row in [
+      (DateTime(2025, 3, 30), DateTime(2025, 4, 30), DateTime(2025, 5, 30)),
+      (DateTime(2025, 7, 31), DateTime(2025, 8, 31), DateTime(2025, 9, 30)),
+      (DateTime(2023, 12, 29), DateTime(2024, 1, 29), DateTime(2024, 2, 29)),
+      (DateTime(2024, 12, 31), DateTime(2025, 1, 31), DateTime(2025, 2, 28)),
+    ]) {
+      test('projects ${row.$2} to valid next date ${row.$3}', () {
+        final items = RecurringDetector.detect([
+          _txn(id: 'first', merchant: 'Netflix', amount: 500, date: row.$1),
+          _txn(id: 'second', merchant: 'Netflix', amount: 500, date: row.$2),
+        ]);
+        expect(items.single.nextExpected, row.$3);
+      });
+    }
+
     test('detects a monthly Netflix subscription', () {
       final txns = [
         _txn(id: '1', merchant: 'Netflix', amount: 649, date: DateTime(2024, 4, 5)),

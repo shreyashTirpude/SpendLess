@@ -71,9 +71,14 @@ class RecurringDetector {
       final type = _classifyType(merchant, txns.last.merchant);
       final avgDay = (txns.map((t) => t.transactionDate.day).reduce((a, b) => a + b) / txns.length).round();
 
-      // Project next date
+      // Project next date, clamping the average day to the actual last day of
+      // the next month (e.g. 30 → Feb 29 in a leap year, not Feb 28).
       final lastTxn = txns.last.transactionDate;
-      final nextDate = DateTime(lastTxn.year, lastTxn.month + 1, avgDay.clamp(1, 28));
+      final nextMonthFirst = DateTime(lastTxn.year, lastTxn.month + 1, 1);
+      final lastDayNextMonth =
+          DateTime(nextMonthFirst.year, nextMonthFirst.month + 1, 0).day;
+      final nextDate = DateTime(
+          nextMonthFirst.year, nextMonthFirst.month, avgDay.clamp(1, lastDayNextMonth));
 
       results.add(RecurringItem(
         merchant: txns.last.merchant,

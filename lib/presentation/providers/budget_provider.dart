@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/budget.dart';
 import '../../data/local/hive_service.dart';
+import 'cache_provider.dart';
 import 'transaction_provider.dart';
 
 final budgetsProvider = FutureProvider<List<Budget>>((ref) async {
@@ -12,6 +13,9 @@ final budgetsProvider = FutureProvider<List<Budget>>((ref) async {
 });
 
 final budgetProgressProvider = FutureProvider.family<(double, double), String>((ref, category) async {
+  // MainShell bumps transactionCacheProvider on every Hive transaction write;
+  // watching it here keeps "spent" (and overBudgetCategoriesProvider) fresh.
+  ref.watch(transactionCacheProvider);
   final budgets = await ref.watch(budgetsProvider.future);
   final budget = budgets.firstWhere(
     (b) => b.category == category,
