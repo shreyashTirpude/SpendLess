@@ -89,7 +89,9 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                                 value: cat,
                                 child: Row(
                                   children: [
-                                    Text(CategoryEngine.getCategoryIcon(cat)),
+                                    Icon(CategoryEngine.getCategoryIconData(cat),
+                                        size: 18,
+                                        color: CategoryEngine.getCategoryFlutterColor(cat)),
                                     const SizedBox(width: 8),
                                     Text(cat, style: Theme.of(context).textTheme.bodyMedium),
                                   ],
@@ -104,7 +106,9 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                     ] else ...[
                       Row(
                         children: [
-                          Text(CategoryEngine.getCategoryIcon(prefillCategory), style: const TextStyle(fontSize: 20)),
+                          Icon(CategoryEngine.getCategoryIconData(prefillCategory),
+                              size: 20,
+                              color: CategoryEngine.getCategoryFlutterColor(prefillCategory)),
                           const SizedBox(width: 8),
                           Text(prefillCategory, style: Theme.of(context).textTheme.labelLarge),
                         ],
@@ -420,7 +424,7 @@ class _BudgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = CategoryEngine.getCategoryFlutterColor(category);
-    final icon = CategoryEngine.getCategoryIcon(category);
+    final icon = CategoryEngine.getCategoryIconData(category);
     final hasLimit = limit != null && limit! > 0;
     final percent = hasLimit ? (spent / limit!).clamp(0.0, 1.0) : 0.0;
     final isOver = hasLimit && spent > limit!;
@@ -461,7 +465,7 @@ class _BudgetCard extends StatelessWidget {
                     color: color.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: Center(child: Text(icon, style: const TextStyle(fontSize: 20))),
+                  child: Center(child: Icon(icon, size: 20, color: color)),
                 ),
               ],
             ),

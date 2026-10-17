@@ -462,4 +462,39 @@ class CategoryEngine {
     };
     return icons[category] ?? '💳';
   }
+
+  /// Uniform line-icon (Material rounded) for a category — the professional
+  /// alternative to the emoji set. Used in the redesigned UI.
+  static IconData getCategoryIconData(String category) {
+    const icons = {
+      'Send Money':        Icons.send_rounded,
+      'Friends':           Icons.people_alt_rounded,
+      'Family':            Icons.family_restroom_rounded,
+      'Food & Dining':     Icons.restaurant_rounded,
+      'Groceries':         Icons.shopping_cart_rounded,
+      'Transport':         Icons.directions_car_rounded,
+      'Fuel':              Icons.local_gas_station_rounded,
+      'Shopping':          Icons.shopping_bag_rounded,
+      'Entertainment':     Icons.movie_rounded,
+      'Subscriptions':     Icons.subscriptions_rounded,
+      'Bills & Utilities': Icons.bolt_rounded,
+      'Rent':              Icons.home_rounded,
+      'Loan EMI':          Icons.account_balance_rounded,
+      'Health':            Icons.local_hospital_rounded,
+      'Personal Care':     Icons.spa_rounded,
+      'Education':         Icons.school_rounded,
+      'Investment':        Icons.trending_up_rounded,
+      'Insurance':         Icons.shield_rounded,
+      'Travel & Hotels':   Icons.flight_rounded,
+      'Government':        Icons.gavel_rounded,
+      'Income':            Icons.savings_rounded,
+      'Income Transfer':   Icons.call_received_rounded,
+      'Salary':            Icons.payments_rounded,
+      'Refund':            Icons.undo_rounded,
+      'Interest':          Icons.percent_rounded,
+      'ATM & Cash':        Icons.local_atm_rounded,
+      'Other':             Icons.category_rounded,
+    };
+    return icons[category] ?? Icons.category_rounded;
+  }
 }
