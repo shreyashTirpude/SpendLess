@@ -21,6 +21,14 @@ void main() {
       previousErrorHandler?.call(details);
     };
     addTearDown(() => FlutterError.onError = previousErrorHandler);
+    // Home renders subtle looping UI (and the chat screen repeats dot
+    // animations), so pumpAndSettle would pump frames forever and time out.
+    // A bounded pump sequence keeps the test deterministic instead.
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 250));
+    }
     app.main();
     // main is async-void. Let native storage initialization complete before
     // interacting, using the mounted root rather than assuming a fixed delay.
@@ -32,7 +40,7 @@ void main() {
     // Synthetic data on a disposable emulator; no live account or inbox is used.
     await DemoDataService.activateDemo();
     appRouter.go('/home');
-    await tester.pumpAndSettle();
+    await settle();
     expect(find.text('Home'), findsWidgets);
     // Exercise the real registered foreground adapter on Android, with
     // synthetic plugin events (not live bank messages or OS SMS delivery).
@@ -61,41 +69,41 @@ void main() {
     expect(imported.transactionDate, smsDate);
     await emitSms('AD-HDFCBK');
     expect(HiveService.transactions.length, initialCount + 1);
-    await tester.pumpAndSettle();
+    await settle();
     for (final label in ['Budget', 'Insights', 'Settings', 'Txns']) {
       await tester.tap(find.text(label).last);
-      await tester.pumpAndSettle();
+      await settle();
       expect(tester.takeException(), isNull, reason: '$label renders without errors');
     }
     expect(find.text('Transactions'), findsOneWidget);
     await tester.tap(find.byType(FloatingActionButton));
-    await tester.pumpAndSettle();
+    await settle();
     // The actual impulse guard can delay the form on busy demo days.
     for (var attempt = 0; attempt < 8 && find.text('Spending Check').evaluate().isNotEmpty; attempt++) {
       await tester.pump(const Duration(seconds: 1));
     }
-    await tester.pumpAndSettle();
+    await settle();
     final amount = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == '0');
     final merchant = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Merchant or person name');
     await tester.enterText(amount, '321');
     await tester.enterText(merchant, 'Release QA Fixture');
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+    await settle();
     await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'Add Transaction'));
     await tester.tap(find.widgetWithText(ElevatedButton, 'Add Transaction'));
-    await tester.pumpAndSettle();
+    await settle();
     expect(find.text('Release QA Fixture'), findsWidgets);
     final saved = HiveService.transactions.values.where((t) => t.merchant == 'Release QA Fixture').single;
     expect(saved.amount, 321);
     expect(saved.source, 'manual');
     await tester.tap(find.text('Home').last);
-    await tester.pumpAndSettle();
+    await settle();
     await tester.tap(find.text('Txns').last);
-    await tester.pumpAndSettle();
+    await settle();
     expect(find.text('Release QA Fixture'), findsWidgets);
     expect(tester.takeException(), isNull);
     // Dispose real shell timers before ending the integration test.
     appRouter.go('/auth');
-    await tester.pumpAndSettle();
+    await settle();
   });
 }

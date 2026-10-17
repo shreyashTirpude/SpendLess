@@ -29,36 +29,92 @@ class SmsScannerService {
     return ms != null ? DateTime.fromMillisecondsSinceEpoch(ms) : DateTime.now();
   }
 
+  /// True while a full inbox scan runs; overlapping scan requests are dropped
+  /// instead of racing each other's dedup snapshot.
+  static bool _scanInFlight = false;
+
+  /// True once this process has repaired legacy duplicate rows.
+  static bool _dedupedOnce = false;
+
+  /// One-time repair for installs that stored duplicates before ingest became
+  /// idempotent (uuid v4 ids + unguarded concurrent scans kept the same bank
+  /// SMS under 3-4 different rows — the duplicate-payments bug). Collapses
+  /// rows that share a raw-SMS hash, keeping the earliest-created one.
+  /// Idempotent; rows without a hash are never touched.
+  static Future<void> removeDuplicateRows() async {
+    if (_dedupedOnce) return;
+    _dedupedOnce = true;
+
+    final box = HiveService.transactions;
+    final byHash = <String, List<String>>{};
+    for (final t in box.values) {
+      final h = t.rawSmsHash;
+      if (h == null) continue;
+      byHash.putIfAbsent(h, () => []).add(t.id);
+    }
+
+    final staleIds = <String>[];
+    for (final ids in byHash.values) {
+      if (ids.length < 2) continue;
+      final rows = ids.map((id) => box.get(id)!).toList()
+        ..sort((a, b) {
+          final byCreated = a.createdAt.compareTo(b.createdAt);
+          return byCreated != 0 ? byCreated : a.id.compareTo(b.id);
+        });
+      staleIds.addAll(rows.skip(1).map((t) => t.id));
+    }
+
+    if (staleIds.isEmpty) return;
+    await box.deleteAll(staleIds);
+    debugPrint(
+        '[SmsScannerService] Removed ${staleIds.length} duplicate rows from pre-fix installs');
+  }
+
   static Future<int> scanInbox() async {
     if (!_isAndroid) return 0;
 
-    final granted = await _telephony.requestPhoneAndSmsPermissions ?? false;
-    if (!granted) return 0;
-
-    final cutoff = DateTime.now().subtract(const Duration(days: 180));
-    final cutoffMs = cutoff.millisecondsSinceEpoch;
-
-    List<SmsMessage> messages = [];
+    // Single-flight: startup, app-resume and the 15-minute timer can all ask
+    // for a scan while one is already running. Each concurrent scan snapshots
+    // the dedup hash set before the others write, so the same bank SMS was
+    // stored 3-4 times under different ids (the duplicate-payments bug). The
+    // in-flight scan already covers every message up to its snapshot and the
+    // live listener covers newer ones, so a second scan adds no coverage.
+    if (_scanInFlight) return 0;
+    _scanInFlight = true;
     try {
-      messages = await _telephony.getInboxSms(
-        columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
-        filter: SmsFilter.where(SmsColumn.DATE).greaterThanOrEqualTo(cutoffMs.toString()),
-        sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
-      );
-    } catch (e) {
-      debugPrint('[SmsScannerService] getInboxSms error: $e');
-      return 0;
+      // Repair any pre-fix duplicate rows first, so the dedup snapshot below
+      // (and everything the user sees) starts from a clean state.
+      await removeDuplicateRows();
+
+      final granted = await _telephony.requestPhoneAndSmsPermissions ?? false;
+      if (!granted) return 0;
+
+      final cutoff = DateTime.now().subtract(const Duration(days: 180));
+      final cutoffMs = cutoff.millisecondsSinceEpoch;
+
+      List<SmsMessage> messages = [];
+      try {
+        messages = await _telephony.getInboxSms(
+          columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
+          filter: SmsFilter.where(SmsColumn.DATE).greaterThanOrEqualTo(cutoffMs.toString()),
+          sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
+        );
+      } catch (e) {
+        debugPrint('[SmsScannerService] getInboxSms error: $e');
+        return 0;
+      }
+
+      // SmsParser owns parsing; the scanner only orchestrates + persists.
+      final parsedMessages = SmsParser.parseMessages(messages).parsedMessages;
+      final box = HiveService.transactions;
+
+      final ingestedCount = await _ingestToHive(parsedMessages, box);
+
+      debugPrint('[SmsScannerService] Scanned ${messages.length} SMS, added $ingestedCount new transactions');
+      return ingestedCount;
+    } finally {
+      _scanInFlight = false;
     }
-
-    // SmsParser owns parsing; the scanner only orchestrates + persists.
-    final parsedMessages = SmsParser.parseMessages(messages).parsedMessages;
-    final box = HiveService.transactions;
-
-    int ingestedCount = await _ingestToHive(parsedMessages, box);
-
-
-    debugPrint('[SmsScannerService] Scanned ${messages.length} SMS, added $ingestedCount new transactions');
-    return ingestedCount;
   }
 
   static Future<int> _ingestToHive(

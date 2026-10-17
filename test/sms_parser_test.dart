@@ -592,4 +592,38 @@ void main() {
       });
     }
   });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SECTION: Idempotent transaction ids (duplicate-payments regression)
+  // ─────────────────────────────────────────────────────────────────────────────
+  group('toTransaction id determinism', () {
+    const body =
+        'INR 2,450.00 debited from A/c XX4821 on 19-Jun-26 at 10:30. Info: ZOMATO*FOOD. UPI Ref: 512345678901. Avl Bal: INR 18,320.50. -HDFCBK';
+
+    test('same SMS content always maps to the same transaction id', () {
+      // uuid v4 ids made every parse a brand-new Hive row, so overlapping
+      // scans (startup + resume + 15-min timer) stored the same bank SMS
+      // 3-4 times. Ids derive from the SMS hash so puts overwrite, not append.
+      final first = SmsParser.toTransaction(p(body)!);
+      final second = SmsParser.toTransaction(p(body)!);
+      expect(first.id, second.id,
+          reason: 'parsing the same SMS twice must reuse the same Hive key');
+    });
+
+    test('different SMS content maps to different transaction ids', () {
+      final a = SmsParser.toTransaction(p(body)!);
+      final b = SmsParser.toTransaction(p(body.replaceAll('2,450.00', '999.00'))!);
+      expect(a.id, isNot(b.id));
+    });
+
+    test('id is a valid uuid (Supabase column compatibility)', () {
+      final id = SmsParser.toTransaction(p(body)!).id;
+      expect(
+        RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+            .hasMatch(id),
+        isTrue,
+        reason: 'derived id must stay in canonical uuid format, got: $id',
+      );
+    });
+  });
 }

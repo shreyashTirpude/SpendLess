@@ -1,4 +1,3 @@
-import 'dart:ui' show FontFeature;
 import 'package:flutter/widgets.dart';
 
 /// One spacing scale for the whole app (4 / 8 / 16 / 24 / 32). Using these

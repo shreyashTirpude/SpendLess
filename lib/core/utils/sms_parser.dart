@@ -52,6 +52,11 @@ class ParsedResult{
 
 class SmsParser {
   static const _uuid = Uuid();
+  // Fixed namespace for deriving transaction ids from SMS content hashes.
+  // Deterministic ids make ingestion idempotent: the same bank SMS always
+  // maps to the same Hive key, so concurrent scans overwrite instead of
+  // appending duplicate rows (uuid v4 made every parse a brand-new record).
+  static const _smsIdNamespace = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
   // ── Bank sender-ID allowlist (TRAI DLT headers) ───────────────────────────
   // Exact, normalized headers only (see [_isTrustedSender]).
@@ -759,7 +764,7 @@ class SmsParser {
     final note = parsed.vpa != null ? 'vpa:${parsed.vpa}' : null;
 
     return Transaction(
-      id: _uuid.v4(),
+      id: _uuid.v5(_smsIdNamespace, parsed.rawSmsHash),
       userId: userId,
       amount: parsed.amount,
       merchant: parsed.merchant,
