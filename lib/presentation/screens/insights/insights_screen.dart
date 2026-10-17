@@ -1403,14 +1403,16 @@ class _HealthScoreCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text('Financial Health',
                         style: TextStyle(
                             color: context.textPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w700)),
-                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
