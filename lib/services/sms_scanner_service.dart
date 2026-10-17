@@ -91,7 +91,9 @@ class SmsScannerService {
       if (!granted) return;
       _telephony.listenIncomingSms(
         onNewMessage: _onNewSms,
-        onBackgroundMessage: _onBackgroundSms,
+        // listenInBackground:false requires onBackgroundMessage:null; passing a
+        // callback makes the plugin assert and the foreground listener never
+        // registers in debug.
         listenInBackground: false, // avoid background isolate crash on older devices
       );
     } catch (e) {
@@ -179,25 +181,4 @@ class SmsScannerService {
       debugPrint('[SmsScannerService] _checkDailyBudget error: $e');
     }
   }
-}
-
-// Top-level background handler (required by telephony package)
-@pragma('vm:entry-point')
-Future<void> _onBackgroundSms(SmsMessage message) async {
-  final body = message.body;
-  if (body == null) return;
-  // Same adapter contract as the foreground handler: reject when the sender is
-  // missing so the allowlist can never be bypassed. Helpers are static members
-  // of SmsScannerService, so they must be qualified from this top-level scope.
-  final address = SmsScannerService._senderOrNull(message);
-  if (address == null) return;
-  final parsed = SmsParser.parseSingle(
-    body,
-    SmsScannerService._receivedAt(message),
-    senderAddress: address,
-  );
-  if (parsed == null) return;
-  // In background we can't access Hive without re-initialising
-  // The foreground service handles persistence; this just logs
-  debugPrint('[BG] New bank SMS: ${parsed.merchant} ₹${parsed.amount}');
 }
