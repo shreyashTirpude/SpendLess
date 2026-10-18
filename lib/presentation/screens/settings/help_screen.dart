@@ -189,9 +189,9 @@ class HelpScreen extends StatelessWidget {
               ),
               _HelpItem(
                 q: 'Is my data safe? Does it go to the internet?',
-                a: 'Your data NEVER leaves your phone. SpendLens stores everything locally '
+                a: 'Your financial data NEVER leaves your phone. SpendLens stores everything locally '
                     'using AES-256 encryption — the same standard used by banks. '
-                    'No account, no cloud sync, no ads. Your SMS are only read on-device.',
+                    'No ads, no data brokers. Account sign-in is optional, and SMS are only read on-device.',
               ),
               _HelpItem(
                 q: 'How do I re-scan SMS if transactions are missing?',

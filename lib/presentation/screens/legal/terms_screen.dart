@@ -500,7 +500,7 @@ const _termsSections = [
   _Section(
     title: '3. Local-Only Storage',
     body:
-        'All data generated or collected by SpendLens is stored exclusively on your device using AES-256 encryption. SpendLens has no servers, no cloud backend, and no internet connectivity. Your financial data never leaves your device.',
+        'All data generated or collected by SpendLens is stored exclusively on your device using AES-256 encryption. All financial analysis — parsing, budgets, and insights — runs on-device, and your financial data is never uploaded. The app uses the internet only for optional account sign-in.',
   ),
   _Section(
     title: '4. Not Financial Advice',
@@ -562,7 +562,7 @@ const _privacySections = [
     body: 'SpendLens — Personal Finance Tracker\nEffective Date: June 17, 2026',
     isHighlight: true,
     highlightText:
-        'Your financial data belongs to you and stays on your device. We collect no personal data on any server. We have no servers.',
+        'Your financial data belongs to you and stays on your device. No financial data is stored on, or synced to, any server.',
   ),
   _Section(
     title: '1. Compliance',
@@ -602,15 +602,15 @@ const _privacySections = [
       'Device identifiers (IMEI, Android ID, etc.)',
       'Photos, files, or any other device content',
       'Browsing history or app usage patterns',
-      'Any data through the internet (the app has no internet access)',
+      'Any of your financial data via the internet — all financial processing happens on-device',
     ],
   ),
   _Section(
     title: '5. Where Data is Stored',
     body:
-        'Everything is stored locally on your device only, in an AES-256 encrypted Hive database. The encryption key is generated on your device and never transmitted anywhere. No data is sent to any server, cloud service, analytics platform, or third party — ever.',
+        'Everything is stored locally on your device only, in an AES-256 encrypted Hive database. The encryption key is generated on your device and never transmitted anywhere. No financial data is sent to any server, cloud service, analytics platform, or third party — ever.',
     isHighlight: true,
-    highlightText: '📵 No internet. No server. No cloud. Ever.',
+    highlightText: '🔒 On-device analysis. Your financial data never leaves your phone.',
   ),
   _Section(
     title: '6. Data Sharing',
@@ -638,7 +638,7 @@ const _privacySections = [
   _Section(
     title: '9. Data Breach',
     body:
-        'Since all data is stored only on your device and we have no servers, a data breach on our end is not possible. If your device is lost or compromised, your data is protected by AES-256 encryption.',
+        'There is no server-side copy of your financial data, so it cannot be exposed through a breach of our systems. If your device is lost or compromised, your data is protected by AES-256 encryption.',
   ),
   _Section(
     title: '10. Contact & Grievance Officer',

@@ -51,7 +51,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   _buildSlide(
                     title: 'Your data stays private',
-                    subtitle: 'Your SMS is processed on YOUR phone only. We never read or store your messages.',
+                    subtitle: 'Your SMS is processed on YOUR phone only. Message text is never stored or sent anywhere.',
                     emoji: '🔒',
                   ),
                   _buildSlide(
