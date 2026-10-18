@@ -59,6 +59,21 @@ void main() {
         },
       }));
     }
+    // The boot-time inbox scan streams rows into Hive while it parses. Capture
+    // the baseline only once the transaction count has stopped changing, so
+    // the scan's tail cannot race the foreground-handler assertions below.
+    var baseline = HiveService.transactions.length;
+    var stablePasses = 0;
+    for (var attempt = 0; attempt < 60 && stablePasses < 4; attempt++) {
+      await tester.pump(const Duration(milliseconds: 500));
+      final current = HiveService.transactions.length;
+      if (current == baseline) {
+        stablePasses++;
+      } else {
+        stablePasses = 0;
+        baseline = current;
+      }
+    }
     final initialCount = HiveService.transactions.length;
     await emitSms('AD-HDFCBKSCAM');
     await emitSms(null);
