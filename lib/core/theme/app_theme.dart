@@ -144,7 +144,7 @@ class AppTheme {
       error: AppColors.error,
       onError: Colors.white,
       outline: AppColors.cardBorderLight,
-      surfaceContainerHighest: Color(0xFFF3F4F6),
+      surfaceContainerHighest: AppColors.backgroundLight,
       onSurfaceVariant: AppColors.textSecondaryLight,
     );
 

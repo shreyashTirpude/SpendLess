@@ -328,6 +328,9 @@ class HomeScreen extends ConsumerWidget {
             // Salary run-out / daily safe-to-spend prediction
             const SliverToBoxAdapter(child: PredictionSummaryCard()),
 
+            // AI Money Coach — offline assistant, Pro-gated on its own screen
+            const SliverToBoxAdapter(child: _AiCoachCard()),
+
             // Festival planner banner (shows when festival is within 60 days)
             const SliverToBoxAdapter(child: _FestivalBanner()),
 
@@ -448,6 +451,82 @@ class _FestivalBanner extends ConsumerWidget {
 }
 
 // ── Privacy Trust Chip ────────────────────────────────────────────────────────
+
+/// Gradient entry card for the AI Money Coach (route /chat). The chat screen
+/// runs fully offline (rule-based templates; optional local Ollama) and gates
+/// itself behind the Pro tier, so this card only navigates.
+class _AiCoachCard extends StatelessWidget {
+  const _AiCoachCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      child: GestureDetector(
+        onTap: () => context.push('/chat'),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                AppColors.gradientStart,
+                AppColors.gradientMid,
+                AppColors.gradientEnd,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.gradientMid.withValues(alpha: 0.35),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child:
+                    const Center(child: Text('✨', style: TextStyle(fontSize: 22))),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ask your AI Money Coach',
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelLarge
+                          ?.copyWith(color: Colors.white),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Why did I overspend? How much can I save?',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.85),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Colors.white),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _TrustChip extends StatelessWidget {
   final String icon;

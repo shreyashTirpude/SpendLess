@@ -182,6 +182,11 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
 
             // Subscriptions teaser card
             _SubscriptionsTeaserCard(ref: ref),
+
+            const SizedBox(height: 16),
+
+            // Micro-savings entry (route /savings; Pro-gated on its own screen)
+            const _SavingsFinderCard(),
           ],
         ),
       ),
@@ -1077,6 +1082,60 @@ class _TopMerchantsCard extends StatelessWidget {
 }
 
 // ── Subscriptions Teaser Card ─────────────────────────────────────────────────
+
+/// Entry card for the micro-savings screen (route /savings). Opportunities are
+/// computed locally from the user's own transactions; the screen gates itself
+/// behind the Pro tier, so this card only navigates.
+class _SavingsFinderCard extends StatelessWidget {
+  const _SavingsFinderCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/savings'),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: context.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: context.cardBorderColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Center(child: Text('🐷', style: TextStyle(fontSize: 22))),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Hidden Savings Finder',
+                      style: Theme.of(context).textTheme.labelLarge),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Spots spends you could cut — and what to save instead',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: context.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: context.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _SubscriptionsTeaserCard extends ConsumerWidget {
   final WidgetRef ref;
