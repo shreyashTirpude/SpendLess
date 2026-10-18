@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/security/security_service.dart';
 import '../../../services/password_service.dart';
 import '../../../data/local/hive_service.dart';
+import '../../../services/biometric_service.dart';
 
 class LockScreen extends StatefulWidget {
   const LockScreen({super.key});
@@ -20,6 +21,8 @@ class _LockScreenState extends State<LockScreen>
   bool _obscure = true;
   bool _loading = false;
   String? _error;
+  final _biometrics = BiometricService();
+  bool _biometricAvailable = false;
   late AnimationController _shakeCtrl;
   late Animation<double> _shakeAnim;
 
@@ -34,6 +37,22 @@ class _LockScreenState extends State<LockScreen>
       CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn),
     );
     _focusNode.addListener(_onFocusChange);
+    // Offer biometric unlock (and auto-prompt) when the user enabled it in
+    // Settings. Password entry always remains available as the fallback.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkBiometrics());
+  }
+
+  Future<void> _checkBiometrics() async {
+    final enabled =
+        HiveService.settings.get('biometricEnabled', defaultValue: false) as bool;
+    if (!enabled) return;
+    final available = await _biometrics.isAvailable();
+    if (!mounted) return;
+    setState(() => _biometricAvailable = available);
+    if (!available) return;
+    final ok = await _biometrics.authenticate();
+    if (!mounted || !ok) return;
+    context.go('/home');
   }
 
   void _onFocusChange() {
@@ -245,6 +264,7 @@ class _LockScreenState extends State<LockScreen>
     await HiveService.transactions.clear();
     await HiveService.budgets.clear();
     await HiveService.settings.put('appLockEnabled', false);
+    await HiveService.settings.put('biometricEnabled', false);
     if (!mounted) return;
     context.go('/onboarding');
   }
@@ -331,7 +351,18 @@ class _LockScreenState extends State<LockScreen>
                       : const Text('Unlock', style: TextStyle(fontSize: 16)),
                 ),
               ),
-              const SizedBox(height: 20),
+              if (_biometricAvailable) ...[
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: _loading ? null : _checkBiometrics,
+                  icon: const Icon(Icons.fingerprint_rounded, size: 20),
+                  label: const Text(
+                    'Unlock with biometrics',
+                    style: TextStyle(color: AppColors.primary, fontSize: 13),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
               TextButton(
                 onPressed: _showForgotDialog,
                 child: const Text(

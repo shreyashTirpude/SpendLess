@@ -71,6 +71,7 @@ final accountEmailProvider = Provider<String?>((ref) {
 
 typedef AppSettings = ({
   bool appLockEnabled,
+  bool biometricEnabled,
   bool transactionAlerts,
   bool budgetAlerts,
   bool weeklyReports,
@@ -84,6 +85,7 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
     final s = HiveService.settings;
     return (
       appLockEnabled: s.get('appLockEnabled', defaultValue: false) as bool,
+      biometricEnabled: s.get('biometricEnabled', defaultValue: false) as bool,
       transactionAlerts: s.get('transactionAlerts', defaultValue: true) as bool,
       budgetAlerts: s.get('budgetAlerts', defaultValue: true) as bool,
       weeklyReports: s.get('weeklyReports', defaultValue: true) as bool,
@@ -116,6 +118,7 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
   bool _getValue(String key) {
     switch (key) {
       case 'appLockEnabled': return state.appLockEnabled;
+      case 'biometricEnabled': return state.biometricEnabled;
       case 'transactionAlerts': return state.transactionAlerts;
       case 'budgetAlerts': return state.budgetAlerts;
       case 'weeklyReports': return state.weeklyReports;
@@ -127,6 +130,7 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
     final s = HiveService.settings;
     return (
       appLockEnabled: s.get('appLockEnabled', defaultValue: false) as bool,
+      biometricEnabled: s.get('biometricEnabled', defaultValue: false) as bool,
       transactionAlerts: s.get('transactionAlerts', defaultValue: true) as bool,
       budgetAlerts: s.get('budgetAlerts', defaultValue: true) as bool,
       weeklyReports: s.get('weeklyReports', defaultValue: true) as bool,

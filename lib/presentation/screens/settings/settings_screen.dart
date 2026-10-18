@@ -201,6 +201,15 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Go to lock screen immediately',
                 onTap: () => context.go('/lock'),
               ),
+            if (settings.appLockEnabled)
+              _ToggleTile(
+                icon: '👆',
+                title: 'Biometric Unlock',
+                subtitle: 'Fingerprint or face unlock, with password fallback',
+                value: settings.biometricEnabled,
+                onChanged: (_) =>
+                    ref.read(appSettingsProvider.notifier).toggle('biometricEnabled'),
+              ),
             _ActionTile(
               icon: '🚪',
               title: 'Logout',
